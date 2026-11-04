@@ -3,6 +3,10 @@
 Consola simulada (Huawei VRP, Cisco IOS y FortiGate) para practicar el diagnóstico del N1 desde el teléfono o la PC.
 Todos los equipos, IP, clientes y salidas son **ficticios**.
 
+## Juego de repaso (repaso.html)
+
+Quiz, tarjetas y ordenar pasos con 288 preguntas por tema (OSI, TCP/IP, VLAN, QinQ, rutas, última milla, UTP, comandos, OSPF B1-B3, BGP B1-B3, RR B1-B2 y filtros). Se abre desde la consola o directo en `/repaso.html`.
+
 ## Práctica libre
 
 Cinco equipos con una red sana (2 Huawei, 2 Cisco y 1 FortiGate). Escribes un comando y te devuelve la salida y, en azul, **para qué sirve, qué mirar y su equivalente** en la otra marca. También explica los filtros, el ping y los comandos de configuración (que siguen bloqueados).
@@ -25,7 +29,6 @@ Cinco equipos con una red sana (2 Huawei, 2 Cisco y 1 FortiGate). Escribes un co
 | 12 | Desde Internet no llegan al hotel | Filtros de rutas (prefix-list) |
 
 
-
 ## Uso
 
 - Abreviaturas: `dis ospf peer br`, `sh ip ospf nei`, `dis int g0/0/3`.
@@ -34,4 +37,5 @@ Cinco equipos con una red sana (2 Huawei, 2 Cisco y 1 FortiGate). Escribes un co
 - Ping simulado: Huawei `ping -s 1472 -f [-vpn-instance NOMBRE] <ip>`, Cisco `ping [vrf NOMBRE] <ip> size 1500 df-bit`.
 - Los comandos de configuración están bloqueados (N1 = solo lectura).
 - El progreso se guarda solo en el navegador.
+
 

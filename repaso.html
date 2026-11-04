@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Repaso CNOC N1</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concepto: panel de rack de NOC. Cada respuesta es un LED de puerto que se enciende en verde o rojo. */
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface2:#F3F6F4; --fg:#13211C; --muted:#586861; --line:#CBD6D1;
+  --accent:#0B7A63; --accent-fg:#FFFFFF; --ok:#17884A; --okbg:#E2F4E9; --bad:#C23B2E; --badbg:#FBE7E4; --warn:#A86A0B;
+  --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --surface:#16201B; --surface2:#1C2822; --fg:#E3EDE8; --muted:#93A49C; --line:#2B3A33;
+    --accent:#3FD6A0; --accent-fg:#08110D; --ok:#3FD6A0; --okbg:#123226; --bad:#FF7366; --badbg:#3A1A17; --warn:#E8B04B;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#16201B; --surface2:#1C2822; --fg:#E3EDE8; --muted:#93A49C; --line:#2B3A33;
+  --accent:#3FD6A0; --accent-fg:#08110D; --ok:#3FD6A0; --okbg:#123226; --bad:#FF7366; --badbg:#3A1A17; --warn:#E8B04B;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--body); font-size:16px; line-height:1.45; margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:18px 40px;
+}
+.app{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px;min-width:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface2);border:1px solid var(--line);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+
+.brand{display:flex;align-items:center;gap:12px}
+.leds{display:flex;gap:5px}
+.leds i{width:10px;height:10px;border-radius:2px;background:var(--ok)}
+.leds i:nth-child(2){background:var(--warn)}
+.leds i:nth-child(3){background:var(--bad)}
+h1{font-family:var(--display);font-weight:700;font-size:38px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0}
+.sub{color:var(--muted);margin:0;font-size:15px}
+.label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.stat b{display:block;font-family:var(--display);font-size:30px;line-height:1.05;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;min-width:0}
+.mode strong{font-family:var(--display);font-size:22px;letter-spacing:.03em;text-transform:uppercase;font-weight:700;line-height:1.1}
+.mode span{font-size:14px;color:var(--muted);line-height:1.3}
+.mode.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.mode.primary span{color:inherit;opacity:.85}
+.mode[disabled]{opacity:.5;cursor:default}
+@media (max-width:360px){.modes{grid-template-columns:1fr}}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.mast{display:flex;flex-direction:column;gap:10px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.mrow .nm{font-size:15px}
+.mrow .ct{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{grid-column:1/-1;height:8px;background:var(--surface2);border:1px solid var(--line);border-radius:2px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .m{background:var(--ok)} .bar .s{background:var(--warn)}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.link{background:none;border:0;padding:6px 0;color:var(--muted);cursor:pointer;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.strip{display:flex;gap:5px;flex:1;justify-content:center;flex-wrap:wrap}
+.strip i{width:14px;height:10px;border-radius:2px;background:var(--line)}
+.strip i.ok{background:var(--ok)} .strip i.bad{background:var(--bad)} .strip i.cur{outline:2px solid var(--fg);outline-offset:1px}
+.tag{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0}
+.q{font-size:19px;line-height:1.4;font-weight:500;margin:0;overflow-wrap:anywhere;text-wrap:pretty}
+
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:16px;line-height:1.35;cursor:pointer;overflow-wrap:anywhere}
+.opt .port{flex:none;width:10px;height:10px;margin-top:6px;border-radius:2px;background:var(--line)}
+.opt.ok{border-color:var(--ok);background:var(--okbg)} .opt.ok .port{background:var(--ok)}
+.opt.bad{border-color:var(--bad);background:var(--badbg)} .opt.bad .port{background:var(--bad)}
+.opt.dim{opacity:.6}
+.opt[aria-disabled="true"]{cursor:default}
+
+.fb{border-radius:8px;padding:14px;border:1px solid var(--line);background:var(--surface2);display:flex;flex-direction:column;gap:6px}
+.fb.ok{border-color:var(--ok);background:var(--okbg)} .fb.bad{border-color:var(--bad);background:var(--badbg)}
+.fb b{font-family:var(--display);font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+.fb p{margin:0;font-size:15.5px;overflow-wrap:anywhere}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:13px 16px;font-weight:600;cursor:pointer;text-align:center;min-height:48px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn[disabled]{opacity:.45;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row .btn{flex:1;min-width:120px}
+
+.card{min-height:230px;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:left;width:100%;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.card.back{background:var(--surface2);border-color:var(--accent)}
+.card .ans{font-size:20px;font-weight:600;margin:0;overflow-wrap:anywhere}
+.card .exp{font-size:15.5px;margin:0;color:var(--muted);overflow-wrap:anywhere}
+.hint{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.rate{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rate .btn small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+
+.score{font-family:var(--display);font-size:72px;line-height:1;font-weight:700;margin:0;font-variant-numeric:tabular-nums}
+.missed{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.missed li{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface2);font-size:15px;overflow-wrap:anywhere}
+.missed li b{display:block;margin-bottom:4px;font-weight:600}
+
+.pool,.chosen{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.step{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:15.5px;cursor:pointer;overflow-wrap:anywhere}
+.step .n{flex:none;font-family:var(--mono);font-size:13px;color:var(--muted);min-width:18px;padding-top:2px}
+.step.ok{border-color:var(--ok);background:var(--okbg)} .step.bad{border-color:var(--bad);background:var(--badbg)}
+.empty{border:1px dashed var(--line);border-radius:8px;padding:14px;color:var(--muted);font-size:14.5px}
+.why{display:block;color:var(--muted);font-size:14px;margin-top:3px}
+.reset{margin-top:4px}
+@media (prefers-reduced-motion:no-preference){.opt,.mode,.btn,.chip,.step{transition:background .12s,border-color .12s}}
+</style>
+
+</head>
+<body>
+<main class="app" id="app" aria-live="polite"></main>
+
+<script>
+/* ---------- Datos ---------- */
+const TOPICS = {
+  osi:"Modelo OSI", tcp:"Modelo TCP/IP", l2:"Conmutación L2", vlan:"VLAN y 802.1Q", qinq:"QinQ y MTU",
+  rt:"Enrutamiento estático", ospf:"OSPF · B1", ospf2:"OSPF · B2", ospf3:"OSPF · B3", bgp1:"BGP · B1", bgp2:"BGP · B2", bgp3:"BGP · B3", rr1:"BGP RR · B1", rr2:"BGP RR · B2", filt:"Filtros de rutas", ult:"Última milla", utp:"Ethernet UTP", cmd:"Comandos"
+};
+/* [tema, pregunta, correcta, [3 incorrectas], explicación] */
+const RAW = [
+["osi","¿Qué capa OSI se encarga del formato de los datos, la compresión y el cifrado?","Presentación (capa 6)",["Sesión (capa 5)","Aplicación (capa 7)","Transporte (capa 4)"],"La Presentación es la traductora: formato (JPEG, ASCII), compresión y cifrado. No hay un equipo de red dedicado: lo hacen el sistema operativo y los programas."],
+["osi","¿Cómo se llama la PDU de la capa de Transporte?","Segmento (TCP) o datagrama (UDP)",["Paquete","Trama","Bits"],"Datos, segmento, paquete, trama, bits. El segmento lleva los puertos de origen y destino."],
+["osi","¿Qué PDU maneja la capa de Enlace de datos?","Trama",["Paquete","Segmento","Datos"],"La trama lleva la MAC de origen y destino, y un FCS al final para detectar daños."],
+["osi","En un switch común, ¿en qué capa OSI actúa principalmente?","Capa 2, Enlace de datos",["Capa 1, Física","Capa 3, Red","Capa 4, Transporte"],"El switch decide con las direcciones MAC. Los routers y los switches de capa 3 actúan en la capa de Red."],
+["osi","Un cliente sin conexión tiene el LED del puerto apagado. ¿En qué capa empiezas a buscar?","Capa 1, Física",["Capa 2, Enlace","Capa 3, Red","Capa 7, Aplicación"],"LED apagado, cable, conector, energía o potencia óptica son síntomas de capa 1. Se diagnostica de abajo hacia arriba."],
+["osi","¿Cuál es el orden correcto de encapsulamiento al enviar?","Datos, segmento, paquete, trama, bits",["Datos, paquete, segmento, trama, bits","Bits, trama, paquete, segmento, datos","Datos, trama, paquete, segmento, bits"],"Cada capa agrega su encabezado al bajar: puertos (L4), IP (L3), MAC y FCS (L2). Al final se convierte en señal (L1)."],
+["osi","¿Cuáles son las dos subcapas de la capa de Enlace de datos?","LLC (802.2) y MAC (802.3)",["LLC (802.3) y MAC (802.2)","TCP y UDP","IP y ARP"],"LLC conecta con la capa de red; MAC maneja las direcciones físicas y el acceso al medio."],
+["osi","¿Qué método de diagnóstico empieza en la capa 1 y va subiendo?","Bottom-up",["Top-down","Divide y vencerás","Por sustitución"],"Es el más útil cuando se sospecha de algo físico o local, porque la mayoría de las fallas están en las capas bajas."],
+["osi","¿Qué capas forman el grupo de capas de host (software)?","7, 6 y 5",["4, 3 y 2","7, 4 y 3","3, 2 y 1"],"Aplicación, Presentación y Sesión son del software del equipo. Las capas 4 a 1 son las de medios."],
+["osi","El receptor recalcula el CRC de una trama y no coincide. ¿Qué hace?","La descarta y sube su contador de errores",["La reenvía igual","Pide a la capa 7 que la repita","La entrega a la capa 3 con una marca"],"El FCS está en la capa 2. Una trama dañada se descarta, y el contador de CRC es la señal."],
+["osi","¿Qué capa mantiene abierta la conversación entre dos programas y la cierra al terminar?","Sesión (capa 5)",["Transporte (capa 4)","Presentación (capa 6)","Red (capa 3)"],"La Sesión establece, administra (control de diálogo) y termina la conversación. Ejemplo: una aplicación que abre sesión con una base de datos."],
+
+["tcp","¿Cómo se abre una conexión TCP?","SYN, SYN-ACK, ACK",["ACK, SYN, SYN-ACK","SYN, ACK, FIN","FIN, ACK, SYN"],"Saludo de 3 pasos: el cliente pide (SYN), el servidor acepta (SYN-ACK) y el cliente confirma (ACK). Ahí acuerdan los números de secuencia iniciales."],
+["tcp","¿Qué puerto usa DNS?","53 (UDP y TCP)",["25","80","179"],"Las consultas normales van por UDP 53."],
+["tcp","¿Qué protocolo y puerto usa BGP?","TCP 179",["UDP 520","TCP 22","UDP 67"],"BGP es de enrutamiento, pero sus mensajes viajan sobre TCP. Si el 179 se bloquea entre vecinos, la sesión no levanta."],
+["tcp","¿Qué transporte conviene para voz y video en vivo?","UDP",["TCP","ICMP","ARP"],"En una llamada importa más la rapidez que recuperar un trozo perdido: reenviarlo tarde no sirve."],
+["tcp","¿Para qué sirve el campo TTL de IP?","Evita bucles: cada router le resta 1 y al llegar a 0 se descarta",["Mide la velocidad del enlace","Indica el puerto de destino","Cuenta los errores CRC"],"Al llegar a 0 el router descarta el paquete y avisa con ICMP. traceroute usa esto para listar los routers del camino."],
+["tcp","Un paquete cruza varios routers. ¿Qué direcciones cambian en cada salto?","Las MAC",["Las IP de origen y destino","El puerto de destino","Solo la IP de destino"],"La IP dice a dónde va el viaje completo; la MAC dice a quién se entrega en el tramo actual."],
+["tcp","¿Para qué sirve ARP en IPv4?","Averiguar la MAC que corresponde a una IP de la red local",["Traducir nombres a IP","Asignar IP automáticamente","Elegir la mejor ruta"],"Pregunta por broadcast «¿quién tiene esta IP?» y el dueño responde con su MAC."],
+["tcp","¿Qué reemplaza a ARP en IPv6?","NDP (ICMPv6)",["DHCP","IGMP","RIPng"],"NDP usa mensajes ICMPv6 (Neighbor Solicitation y Neighbor Advertisement) e incluye DAD y SLAAC."],
+["tcp","¿Qué puertos usa DHCP?","UDP 67 (servidor) y 68 (cliente)",["TCP 80 y 443","UDP 53 y 123","TCP 20 y 21"],"El cliente, sin IP todavía, manda el Discover por broadcast. Para cruzar redes se usa un relay."],
+["tcp","¿Qué valor de EtherType indica que la carga es un paquete IPv4?","0x0800",["0x0806","0x8100","0x88a8"],"0x0806 es ARP; 0x8100 es una etiqueta 802.1Q; 0x88a8 es el S-TAG de QinQ."],
+["tcp","El modelo TCP/IP de 4 capas junta en una sola capa lo que OSI separa en tres. ¿Cuál?","Aplicación (OSI 7, 6 y 5)",["Transporte","Internet","Acceso a la red"],"Formatear, cifrar y manejar la conversación quedan a cargo de cada aplicación."],
+["tcp","¿Qué herramienta confirma que un puerto TCP responde de extremo a extremo?","telnet <ip> <puerto>",["ping","tracert","arp -a"],"Si conecta, el saludo de 3 pasos funciona. Ping solo prueba ICMP."],
+["tcp","El ping responde, pero la página no carga. ¿Qué capas sospechas?","Transporte o Aplicación",["Física","Enlace","Red"],"Si hay ping, las capas 1 a 3 funcionan. Revisa el puerto (telnet), DNS (nslookup) y el servicio (curl)."],
+
+["l2","Un switch recibe una trama con MAC de destino desconocida. ¿Qué hace?","La inunda por todos los puertos, menos por el que llegó",["La descarta","La manda solo al router","Pide la MAC por DHCP"],"Es la acción de inundar (flood). Cuando el destino responda, el switch aprenderá su MAC."],
+["l2","¿Cómo aprende un switch las MAC?","Lee la MAC de origen de cada trama y la asocia al puerto",["Lee la MAC de destino","Se la pide al router","Las configura el DHCP"],"Aprender (learn): registra MAC de origen y puerto en la tabla MAC."],
+["l2","Una entrada de la tabla MAC deja de recibir tráfico durante un tiempo. ¿Qué pasa?","Se borra (envejecimiento o aging)",["Se queda para siempre","Se convierte en estática","Se envía a un vecino"],"Si alguien se muda y no vuelve a aparecer, el switch lo borra de su libreta."],
+["l2","¿Cuáles son las cinco acciones del switch?","Aprender, inundar, reenviar, filtrar y envejecer",["Enrutar, cifrar, inundar, filtrar y comprimir","Aprender, segmentar, enrutar, filtrar y ordenar","Inundar, reenviar, cifrar, balancear y enrutar"],"En inglés: learn, flood, forward, filter y aging."],
+["l2","¿Cuándo «filtra» un switch una trama?","Cuando origen y destino están en el mismo puerto",["Cuando la MAC es desconocida","Cuando el CRC es correcto","Cuando es un broadcast"],"No tiene sentido reenviarla: ya llegó a su destino por ese segmento."],
+["l2","Un cliente no tiene servicio y su MAC no aparece en la tabla del switch. ¿Qué indica?","La trama no está llegando: problema de capa 1 o de VLAN",["El problema es de DNS","El servidor está caído","El router tiene una ruta mal puesta"],"Lectura práctica para el N1: sin MAC aprendida, revisa cable, fibra, convertidor o VLAN."],
+["l2","Un switch sin VLAN, ¿cuántos dominios de broadcast tiene?","Uno solo",["Uno por puerto","Uno por cada MAC","Ninguno"],"Todos los equipos reciben los broadcasts de todos. Las VLAN y los routers dividen el dominio de difusión."],
+["l2","En un switch, cada puerto es...","Un dominio de colisión propio",["Un dominio de broadcast propio","Parte de un único dominio de colisión","Una VLAN distinta"],"Con full dúplex no hay colisiones. El hub, en cambio, compartía un solo dominio de colisión."],
+
+["vlan","¿Cuántos bits tiene el VLAN ID?","12 bits",["8 bits","16 bits","4 bits"],"12 bits dan 4096 valores (0 a 4095): el 0 y el 4095 están reservados y quedan 4094 utilizables."],
+["vlan","¿Cuánto mide la etiqueta 802.1Q?","4 bytes",["2 bytes","6 bytes","8 bytes"],"TPID de 16 bits (0x8100), PCP de 3 bits, DEI de 1 bit y VLAN ID de 12 bits."],
+["vlan","¿Dónde se inserta la etiqueta 802.1Q en la trama?","Entre la MAC de origen y el campo Tipo",["Después del FCS","Antes de la MAC de destino","Dentro del paquete IP"],"Por eso la trama crece de 1518 a 1522 bytes."],
+["vlan","¿Para qué sirve el campo PCP de la etiqueta?","Prioridad de 0 a 7 (802.1p)",["Identificar la VLAN","Marcar descarte por congestión","Indicar el tipo de protocolo"],"Sirve, por ejemplo, para dar preferencia a la voz. El descarte lo marca el DEI."],
+["vlan","¿Cuál es la VLAN nativa por defecto en Cisco y cuál es la buena práctica?","VLAN 1; cambiarla a una sin uso y que sea igual en ambos extremos",["VLAN 0; dejarla así","VLAN 4094; dejarla así","VLAN 100; no tocarla"],"Cambiarla evita ataques de salto de VLAN. Un mismatch entre extremos provoca fugas entre VLAN."],
+["vlan","En Huawei, ¿qué es el PVID?","La VLAN que el puerto asigna a las tramas que entran sin etiqueta",["La VLAN de gestión","El número máximo de VLAN","La prioridad de la trama"],"Equivale a la VLAN de acceso o a la nativa de Cisco."],
+["vlan","¿Qué tipo de puerto es el predeterminado en Huawei?","Hybrid",["Access","Trunk","Routed"],"Hybrid decide VLAN por VLAN si sale etiquetada (lista tagged) o sin etiqueta (lista untagged)."],
+["vlan","Puerto híbrido Huawei con la VLAN 120 untagged y la VLAN 10 tagged. ¿Cómo salen?","La 120 sin etiqueta y la 10 con etiqueta",["Ambas con etiqueta","Ambas sin etiqueta","La 120 con etiqueta y la 10 sin etiqueta"],"Lo que entra sin etiqueta recibe el PVID. El PVID y la lista untagged son cosas separadas, aunque normalmente se ponen iguales."],
+["vlan","Un solo cliente sin servicio; los demás por el mismo troncal funcionan. ¿Primera sospecha?","Su VLAN no está permitida en algún troncal del camino",["VLAN nativa distinta","MTU baja","Duplex mismatch"],"El troncal está activo pero descarta en silencio las VLAN no permitidas. Revisa cada troncal del camino."],
+["vlan","Varios servicios raros a la vez en un enlace y broadcasts de una VLAN que aparecen en otra. ¿Causa probable?","VLAN nativa o PVID distinto en cada extremo",["VLAN no permitida","Cable dañado","SFP sucio"],"Revisa la nativa (Cisco) o el PVID (Huawei) en ambos extremos del troncal."],
+["vlan","Un puerto access conecta un PC. ¿Cómo recibe el PC las tramas?","Sin etiqueta: el puerto la quita al enviar",["Siempre con etiqueta 802.1Q","Con doble etiqueta","Con etiqueta solo en la VLAN 1"],"Los PC e impresoras no entienden etiquetas. Un puerto access pertenece a una sola VLAN."],
+
+["qinq","¿Qué problema resuelve QinQ?","Que 4094 VLAN no alcanzan y que clientes distintos usen las mismas VLAN sin mezclarse",["La falta de direcciones IPv4","El exceso de broadcast en una VLAN","La velocidad del enlace"],"El ISP envuelve las VLAN del cliente con una etiqueta propia y no toca la del cliente."],
+["qinq","En QinQ, ¿cómo se llama la etiqueta del proveedor?","S-TAG",["C-TAG","P-TAG","Q-TAG"],"S-TAG es la Service VLAN, la externa. Con ella conmuta la red del ISP."],
+["qinq","¿Qué TPID usa el S-TAG?","0x88a8",["0x8100","0x0800","0x0806"],"El C-TAG del cliente mantiene 0x8100."],
+["qinq","¿Qué hace el ISP con el C-TAG del cliente?","Nada: no lo lee ni lo cambia",["Lo reemplaza por el S-TAG","Lo cifra","Lo usa para enrutar"],"El C-TAG viaja intacto dentro de la red del ISP."],
+["qinq","¿Con qué etiqueta conmuta la red del ISP una trama QinQ?","Solo con el S-TAG",["Con el C-TAG","Con las dos a la vez","Con la IP de destino"],"En el borde de destino se quita el S-TAG y el cliente recibe su trama original."],
+["qinq","¿Cuál es el tamaño máximo de trama con QinQ (dos etiquetas)?","1526 bytes",["1518 bytes","1522 bytes","1500 bytes"],"Normal 1518; con 802.1Q 1522 (baby giant); con QinQ 1526. Cada etiqueta suma 4 bytes."],
+["qinq","El ping normal funciona, pero las transferencias grandes y HTTPS se congelan. ¿Qué sospechas?","MTU: algún equipo del camino descarta tramas grandes",["VLAN no permitida","DNS caído","Una ruta flotante activa"],"Regla del N1: «lo pequeño pasa y lo grande no». Sospecha de convertidores de medios y radios."],
+["qinq","¿Cómo averiguas la MTU real del camino?","Ping con el bit DF y tamaño creciente hasta que falle",["Con traceroute sin opciones","Con nslookup","Mirando el LED del puerto"],"El tamaño donde empieza a fallar indica la MTU real."],
+["qinq","¿Qué contador de interfaz sube cuando llegan tramas más grandes de lo permitido?","Giants",["Runts","Collisions","Late collisions"],"Los giants (más de 1518 bytes, 1522 con VLAN) suelen indicar una MTU distinta entre equipos."],
+["qinq","En Huawei, ¿qué tamaño pruebas con `ping -s` y DF para una MTU de 1500?","1472",["1500","1528","1518"],"En Huawei, -s es solo el dato: MTU = dato + 28 (20 de IP y 8 de ICMP)."],
+["qinq","En una ONT GPON, ¿qué es VLAN stacking?","Agregar un S-TAG a lo que manda el cliente (QinQ en la ONT)",["Cambiar la VLAN local por la de servicio","Sumar el ancho de banda de dos ONT","Apilar dos ONT en el mismo puerto"],"VLAN translation cambia la VLAN; VLAN stacking agrega la etiqueta externa. La OLT lo configura por OMCI."],
+
+["rt","Dos rutas sirven para el mismo paquete. ¿Cuál gana primero?","La más específica (prefijo más largo)",["La de menor distancia administrativa","La más antigua","La que esté al inicio de la tabla"],"/29 gana a /24 y a /0. Si empatan, decide la distancia administrativa; si también empatan, hay balanceo de carga."],
+["rt","Dos rutas igual de específicas. ¿Qué decide?","La menor distancia administrativa",["La mayor distancia administrativa","El orden en la configuración","El ancho de banda"],"Menor número, más confiable."],
+["rt","¿Cuál es la distancia administrativa por defecto de una ruta estática en Huawei?","60",["1","10","110"],"En Cisco es 1. Una red conectada es 0 en ambos."],
+["rt","En Huawei, ¿quién gana: OSPF o una ruta estática?","OSPF (10 contra 60)",["La estática","Empatan","Depende del next-hop"],"En Cisco pasa al revés: la estática (1) le gana a OSPF (110). Es la diferencia que más confunde."],
+["rt","¿Qué es una ruta flotante?","Una estática de respaldo, con distancia mayor, que solo entra si cae la principal",["Una ruta que cambia sola","Una ruta hacia Null0","Una ruta con máscara /32"],"En los ejemplos del curso se escribe con distancia 130 en Cisco y con preference 100 en Huawei."],
+["rt","El puerto sigue arriba, pero el camino está roto más adelante. ¿Entra la ruta flotante?","No: la principal sigue en la tabla; hay que vigilarla con IP SLA, NQA o BFD",["Sí, de inmediato","Sí, tras 60 segundos","Solo en Cisco"],"La flotante solo entra cuando la principal sale de la tabla."],
+["rt","Un cliente «envía pero nunca recibe respuesta» y el traceroute muestra * * * tras un salto. ¿Qué falta?","La ruta de regreso",["La ruta de ida","El DNS","La VLAN nativa"],"La comunicación necesita ida y vuelta. El último router que respondió no sabe cómo volver hacia el cliente."],
+["rt","Un cliente se queja de lentitud y la ruta usa distancia 130 (o preference 100). ¿Qué pasa?","El tráfico va por el enlace de respaldo",["Hay un duplex mismatch","La MTU es baja","Hay un bucle de enrutamiento"],"Averigua por qué cayó la principal (puerto down, vecino inalcanzable)."],
+["rt","¿Cuál es el comando estrella para ver qué ruta usa el router para una IP?","show ip route <ip> (Cisco) o display ip routing-table <ip> (Huawei)",["show ip arp / display arp","show vlan / display vlan","show version / display version"],"Es el primer paso del diagnóstico de enrutamiento."],
+["rt","¿Qué hace una ruta hacia Null0?","Descarta el tráfico a propósito",["Lo envía al respaldo","Lo duplica","Lo marca con prioridad"],"Sirve para evitar que el tráfico sin destino dé vueltas."],
+["rt","Una ruta estática está en la configuración, pero no en la tabla. ¿Causa típica?","El puerto de salida está caído o el vecino no es alcanzable",["La máscara es /32","Es una ruta por defecto","OSPF le gana siempre"],"El router revisa sus estáticas todo el tiempo y las retira si su camino no está vivo."],
+["rt","En Ethernet, ¿por qué no se escribe una estática solo con la interfaz de salida?","El router pregunta por ARP por cada destino y satura memoria y enlace",["Porque esa opción no existe","Porque cambia la VLAN","Porque desactiva OSPF"],"Se usa el next-hop, o la forma completa (puerto más vecino)."],
+["rt","¿Cómo se reconoce una ruta por defecto?","0.0.0.0/0; en Cisco aparece como S*",["Termina en /32","Es una /24 con next-hop","Sale por la interfaz Null0"],"Cisco la llama Gateway of Last Resort."],
+
+["ult","¿Qué rango de potencia RX se considera normal en fibra (según el curso)?","-8 a -20 dBm",["0 a -3 dBm","-24 a -35 dBm","-40 dBm o menos"],"Siempre compara con la ficha del SFP. Más cerca de 0 es más luz."],
+["ult","RX de -38.9 dBm o LOS. ¿Qué indica?","Sin luz: fibra cortada, hilo desconectado o SFP dañado",["Saturación","Luz normal","Conector apenas sucio"],"Entre -24 y -35 hay luz baja (errores y microcortes); -40 o LOS es sin luz."],
+["ult","RX entre 0 y -3 dBm en un SFP de larga distancia. ¿Qué pasa?","Saturación: se pone un atenuador",["Luz normal","Corte de fibra","SFP incompatible"],"Suele ser un enlace corto con un SFP de largo alcance. Campo debe atenuar."],
+["ult","¿Cómo se calcula el presupuesto óptico?","Potencia TX menos sensibilidad RX",["Potencia TX más sensibilidad RX","RX menos saturación","TX por la distancia"],"Es cuánta luz se puede perder en el camino antes de que el enlace caiga."],
+["ult","Dos SFP BiDi, ambos del lado A, frente a frente. ¿Qué pasa?","No hay enlace",["Funciona a la mitad","Funciona normal","Solo falla a 100 Mbps"],"El lado A transmite en 1310 y recibe en 1550; el lado B, al revés. Vienen en pareja."],
+["ult","¿Qué conectores nunca se deben mezclar?","UPC (azul) con APC (verde)",["LC con SC","SC con FC","LC con LC"],"Se dañan las puntas y se pierde la señal."],
+["ult","¿Cuál es la función principal del DDM/DOM de un SFP?","Informar en tiempo real potencia TX/RX, temperatura, voltaje y corriente",["Aumentar la distancia","Cifrar el enlace","Convertir luz en cobre"],"Permite diagnosticar a distancia si la falla es de la fibra o del SFP."],
+["ult","¿Qué hace LFP (LLCF) en un convertidor de medios?","Apaga el puerto de cobre cuando cae la fibra (y al revés)",["Aumenta la velocidad","Cifra el tráfico","Activa la autonegociación"],"Así el router ve el puerto caído, sale la alarma y entra el respaldo."],
+["ult","Con LFP activo, el puerto UTP del convertidor y el LED FX están apagados. ¿Qué concluyes?","Puede ser un corte de fibra: no culpes al cable UTP sin mirar la fibra",["El cable UTP está malo","El router del cliente está apagado","El SFP está sobrecalentado"],"Con LFP los dos LED se apagan en las dos fallas. Mira el otro extremo o la potencia óptica."],
+["ult","¿Qué diferencia hay entre monomodo y multimodo?","Monomodo (~9 µm) para largas distancias; multimodo (50 o 62,5 µm) dentro de edificios",["Multimodo llega más lejos","Monomodo solo sirve a 850 nm","No hay diferencia"],"La fibra de calle del ISP es monomodo."],
+["ult","¿Cuánto de la zona de Fresnel debe quedar libre?","Al menos el 60 %",["Al menos el 10 %","El 100 % siempre","Solo la línea de vista"],"La señal ocupa un volumen alrededor de la línea de vista, no una línea delgada."],
+["ult","En un radioenlace, ¿qué indicador pesa más: RSSI o SNR/CINR?","SNR/CINR",["RSSI","Ninguno","Pesan igual siempre"],"Una señal fuerte con mucho ruido funciona mal."],
+["ult","¿Qué SNR permite 256-QAM en radio?","Más de 32 dB",["25 a 31 dB","18 a 24 dB","10 a 17 dB"],"25-31: 64-QAM; 18-24: 16-QAM; 10-17: QPSK; menos de 10 se cae o hace flapping."],
+["ult","¿Qué RSSI se considera excelente en radio?","-45 a -60 dBm",["-61 a -70 dBm","-71 a -75 dBm","-83 dBm o menos"],"-83 o menos es crítico."],
+["ult","RADWIN muestra RSS1 y RSS2 con 14 dB de diferencia. ¿Qué sospechas?","Alineación, antena o cable dañado",["Todo normal","Falla del switch","VLAN no permitida"],"Deben ser parecidos (diferencia máxima de 3 a 5 dB)."],
+["ult","Si llueve fuerte o entra interferencia, ¿qué hace el radio?","Baja de modulación y sigue conectado, pero más lento",["Se apaga","Sube de modulación","Cambia de VLAN"],"Las modulaciones simples (QPSK) aguantan más ruido que 256-QAM."],
+["ult","¿Cuál es el margen de SNR mínimo recomendado en SHDSL (cobre)?","11 dB",["3 dB","5 dB","18 dB"],"Regla del CNOC: siempre por encima de 11 dB. Más de 18 es excelente."],
+["ult","En cobre, ¿qué atenuación es mejor?","La más cercana a 0 (menos de 20 dB es excelente)",["La más alta","Más de 45 dB","Es indiferente"],"Al revés que la potencia en fibra: más cerca de 0 significa cliente más cerca del nodo."],
+["ult","En un enlace SHDSL, ¿qué roles hay?","STU-C (central, maestro) y STU-R (remoto, esclavo)",["Dos maestros","Dos esclavos","STU-A y STU-B"],"Si los dos están como maestros o como esclavos, no sincronizan."],
+["ult","¿Qué es un E1?","2,048 Mbps dividido en 32 canales de 64 kbps (30 llamadas)",["1 Gbps por fibra","10 Mbps por UTP","Una VLAN de voz"],"El canal 0 lleva la sincronía y el 16 la señalización."],
+["ult","Alarma AIS en un E1. ¿Qué significa?","El equipo anterior perdió la señal: la falla está antes",["Se perdió el formato de trama","No llega señal al puerto","Todo normal"],"LOS: no llega señal; LOF: formato de trama distinto."],
+["ult","Alarma LOF en un E1. ¿Causa típica?","Los dos extremos no usan el mismo formato de trama (CRC-4)",["Cable E1 desconectado","PBX apagada","Cobre con humedad"],"Ambos extremos deben coincidir en el formato."],
+["ult","¿Qué función tiene la tarjeta CM-2 del chasis LRS?","Da una sola IP para gestionar todos los módems del chasis",["Alimenta el chasis","Convierte E1 en SIP","Multiplexa los pares"],"Las tarjetas ASMi no tienen IP propia; desde la CM-2 se ve también el módem remoto por el EOC."],
+["ult","Un enlace de 2 pares unidos (bonding) pierde un par. ¿Qué pasa?","Sigue con servicio, pero a menor velocidad",["Se cae completo","Cambia de modulación","Pasa a half dúplex"],"El grupo aparece como Degraded."],
+["ult","¿Cuándo se considera una línea con UAS (segundos no disponibles)?","Después de 10 SES seguidos: la línea se considera caída",["Con un solo error","Cuando el CRC es 0","Al reiniciar el módem"],"ES: segundos con error; SES: con errores graves y tráfico congelado; UAS: no disponibles."],
+
+["utp","¿Cuál es la distancia máxima de un tramo UTP en 10, 100 y 1000 Mbps?","100 metros",["50 metros","150 metros","300 metros"],"Más largo, más errores (y late collisions)."],
+["utp","¿Cuántos pares usa 1000BASE-T?","Los 4, en ambos sentidos a la vez",["2","1","3"],"100BASE-TX usa 2 pares (pines 1-2 y 3-6)."],
+["utp","¿Cuál es la regla de oro de la autonegociación?","Los dos extremos en automático, o ambos forzados igual; nunca uno forzado y otro en automático",["Siempre forzar los dos","Un lado forzado y otro automático","Dejar half dúplex"],"A 1 Gbps, siempre automático: 1000BASE-T necesita la autonegociación."],
+["utp","Un lado está forzado a 100 full y el otro en automático. ¿Cómo queda el automático?","100 Mbps en half dúplex (duplex mismatch)",["1 Gbps full","100 Mbps full","Se apaga el puerto"],"La detección paralela adivina la velocidad pero no el dúplex y, por norma, elige half."],
+["utp","En un duplex mismatch, ¿qué cuenta el lado FULL?","CRC y runts, con colisiones en 0",["Late collisions","Solo giants","Nada"],"El lado half es el que cuenta colisiones y late collisions."],
+["utp","En un duplex mismatch, ¿qué cuenta el lado HALF?","Late collisions, collisions y deferred",["CRC con colisiones en 0","Solo giants","Nada"],"Siente que «choca», corta la trama y reintenta."],
+["utp","Un cliente contratado a 1 Gbps aparece en 100 Mbps full. ¿Causa probable?","Un par del cable roto o un conector mal ponchado (speed downshift)",["MTU baja","VLAN nativa distinta","Ruta flotante activa"],"Suele ser un par dañado (pines 4-5 o 7-8)."],
+["utp","Ves 15 000 CRC en un puerto. ¿Qué haces primero?","Anotar y medir de nuevo en 1 o 2 minutos con tráfico, para ver si siguen subiendo",["Cambiar el cable","Reiniciar el equipo","Forzar 100 full"],"Los contadores se acumulan desde el arranque o la última limpieza."],
+["utp","¿Por qué «el puerto está up/up, entonces la capa 1 está bien» es un error?","Porque un enlace con duplex mismatch o con miles de CRC también está up",["Porque up/up es mentira","Porque solo importa el LED","Porque el ping siempre falla"],"Y que el ping responda tampoco prueba salud: manda paquetes pequeños de a uno."],
+["utp","En Cisco, `show interfaces status` muestra `a-full` y `a-1000`. ¿Qué significa el prefijo «a-»?","Que el valor salió de la autonegociación",["Que el puerto está administrado","Que está en alarma","Que está forzado"],"Sin «a-» (full, 100) el puerto está forzado a mano."],
+["utp","¿Se puede poner un puerto Gigabit en half dúplex?","No: Cisco y Huawei no lo permiten en Gigabit",["Sí, con speed 1000","Sí, con negotiation auto","Solo en Huawei"],"1000BASE-T necesita autonegociación y en Gigabit solo existe full."],
+["utp","¿Qué es un runt?","Una trama de menos de 64 bytes con error",["Una trama de más de 1518 bytes","Una colisión tardía","Un paquete sin TTL"],"Suele indicar colisiones por duplex mismatch."],
+
+["cmd","Huawei: ¿qué comando muestra toda la configuración activa?","display current-configuration (dis cur)",["display saved-configuration","display version","display this"],"Muestra lo que está en memoria; sin `save` se pierde al reiniciar."],
+["cmd","Huawei: ¿cómo guardas la configuración?","save",["write memory","copy run start","commit"],"En Cisco: `write memory`."],
+["cmd","Cisco: equivalente de `display ip routing-table`","show ip route",["show ip arp","show vlan brief","show interfaces trunk"],"Con la IP al final muestra la ruta que usa ese destino."],
+["cmd","Huawei: ¿cómo ves solo las interfaces caídas?","display interface brief | include down",["display interface down","display ip routing-table | down","display current-configuration | down"],"`| include` filtra líneas; `| exclude` las oculta; `| begin` empieza desde la coincidencia."],
+["cmd","Huawei: comando para ver los vecinos OSPF","display ospf peer brief",["display ospf route","display bgp peer","display ospf area"],"En Cisco: `show ip ospf neighbor`."],
+["cmd","Huawei: comando para ver las sesiones BGP","display bgp peer",["display bgp routing-table","display ospf peer brief","display ip vpn-instance"],"En Cisco: `show ip bgp summary`."],
+["cmd","Huawei: ¿qué comando muestra PVID y VLAN permitidas por puerto?","display port-vlan",["display vlan","display mac-address","display stp brief"],"En Cisco: `show interfaces trunk`."],
+["cmd","Cisco: ping con DF y tamaño 1500 (paquete completo)","ping <ip> size 1500 df-bit",["ping <ip> -s 1500 -f","ping -f -l 1500 <ip>","ping <ip> repeat 1500"],"En Cisco, size es el paquete completo; en Huawei, -s es solo el dato."],
+["cmd","Huawei: ¿cómo entras al modo de configuración?","system-view (sys)",["configure terminal","enable","conf t"],"En Cisco: `conf t`."],
+["cmd","Huawei: comando para ver la tabla ARP completa","display arp all",["display mac-address","display lldp neighbor brief","display ip interface brief"],"Con `| include <ip>` ves con qué MAC y puerto aprendió esa IP."],
+["cmd","Cisco: ¿cómo ves toda la configuración de OSPF?","show run | section ospf",["show ip ospf neighbor","show run | include interface","show ip protocols | begin ospf"],"`| section` muestra la sección completa; en Huawei se usa `| begin`."],
+["cmd","Huawei: ¿cómo limpias los contadores de una interfaz?","reset counters interface <id>",["clear counters <id>","clear-statistics","reset interface <id>"],"`clear counters` es de Cisco; `clear-statistics` es de RAD."],
+["cmd","Raisecom RAX711: ¿qué comando muestra la potencia del SFP (DDM)?","show transceiver ddm interface giga-ethernet 1/1",["show interface giga-ethernet 1/1","show mac-address-table","show logging"],"Muestra también los límites de alarma del propio SFP."],
+["cmd","RAD ETX-1: ¿dónde ves la potencia RX/TX del SFP?","port ethernet 1 y luego show status",["show summary-inventory","show statistics","show mac-address-table all"],"RX normal entre -8 y -22 dBm; menos de -25 es luz baja."],
+["cmd","Huawei: ¿para qué sirve `display lldp neighbor brief`?","Ver los equipos vecinos conectados",["Ver la tabla MAC","Ver las rutas","Ver la configuración"],"En Cisco: `show cdp neighbors` o `show lldp neighbors`."],
+["cmd","Windows: ping con DF para probar una MTU de 1500","ping -f -l 1472 <ip>",["ping -f -l 1500 <ip>","ping -t 1472 <ip>","ping -n 1472 <ip>"],"-l es el tamaño del dato (MTU 1500 = 1472 + 28)."],
+
+["ospf","¿Qué tipo de protocolo es OSPF?","IGP de estado de enlace",["EGP de vector distancia","Protocolo de capa 2","IGP de vector distancia"],"IGP: se usa dentro de una sola empresa (un sistema autónomo). Estado de enlace: cada router tiene el mapa completo de la red."],
+["ospf","¿Sobre qué viaja OSPF?","Directo sobre IP, protocolo 89",["TCP puerto 179","UDP puerto 520","UDP puerto 89"],"No usa TCP ni UDP. Si un firewall o filtro bloquea el protocolo 89, no hay vecinos. TCP 179 es BGP."],
+["ospf","¿A qué dirección multicast mandan los Hello los routers OSPF?","224.0.0.5",["224.0.0.6","224.0.0.9","255.255.255.255"],"224.0.0.5 es para todos los routers OSPF; 224.0.0.6 es para DR y BDR."],
+["ospf","¿Cuáles son los valores por defecto de Hello y Dead en Ethernet y punto a punto?","10 s y 40 s",["30 s y 120 s","5 s y 20 s","10 s y 30 s"],"Dead es 4 veces el Hello. Cada Hello recibido reinicia el contador Dead."],
+["ospf","¿Qué parámetro del Hello debe ser DISTINTO entre dos vecinos?","El Router ID",["El área","Hello y Dead","La máscara"],"Dos routers con el mismo Router ID no forman vecindad completa. Área, máscara, Hello/Dead y autenticación deben coincidir."],
+["ospf","¿Cómo elige OSPF el Router ID?","Manual; si no, la IP más alta de loopback; si no, la más alta de interfaz activa",["La IP más baja de cualquier interfaz","El número de proceso","La MAC más alta"],"Lo recomendado es escribirlo a mano. El Router ID es una etiqueta: aunque parezca IP, puede no responder a ping."],
+["ospf","El número de proceso es 1 en un router y 10 en su vecino. ¿Qué pasa?","Forman vecindad igual: el número es local",["No forman vecindad","Se queda en Init","Se queda en ExStart"],"Lo que debe coincidir es el área, no el número de proceso."],
+["ospf","¿En qué orden pasa una adyacencia OSPF hasta estar completa?","Down, Init, 2-Way, ExStart, Exchange, Loading, Full",["Down, 2-Way, Init, Exchange, ExStart, Full","Init, Down, ExStart, 2-Way, Loading, Full","Down, Init, ExStart, 2-Way, Exchange, Full"],"Cuando falla, el estado donde se atasca dice dónde buscar. Por eso es lo primero que mira el N1."],
+["ospf","Un vecino OSPF se queda atascado en ExStart o Exchange. ¿Qué revisas primero?","El MTU de los dos extremos",["Los temporizadores Hello y Dead","El área","La autenticación"],"El MTU no viaja en el Hello: se ven como vecinos, pero el DBD grande es rechazado. Pasa mucho con convertidores y radioenlaces. También puede ser un Router ID repetido."],
+["ospf","El vecino aparece en Init. ¿Qué significa?","Escucho sus Hello, pero él no escucha los míos",["Las bases de datos están sincronizadas","Hay un MTU distinto","El área es distinta"],"Comunicación en un solo sentido: filtro en una sola dirección, multicast bloqueado en un switch o enlace unidireccional."],
+["ospf","Dos routers conectados en broadcast aparecen en 2-Way. ¿Es una falla?","No, si ninguno es DR o BDR",["Sí, siempre","Sí, es un MTU distinto","Sí, es un Router ID repetido"],"En un enlace punto a punto, 2-Way sí es falla. En broadcast es normal entre routers DROTHER."],
+["ospf","No aparece ningún vecino y el puerto está arriba. ¿Qué parámetros pudieron no coincidir?","Área, máscara, Hello/Dead o autenticación",["MTU","Número de proceso","Router ID"],"El Hello se descarta sin mensaje de error. Compara los dos lados. El MTU falla más adelante, en ExStart."],
+["ospf","¿Qué paquete OSPF pide los LSA que le faltan al router?","LSR (Link-State Request)",["LSU","DBD","LSAck"],"Hello descubre, DBD resume, LSR pide, LSU entrega los LSA completos y LSAck confirma."],
+["ospf","¿Qué contiene la LSDB?","Todos los LSA: el mapa de la red del área",["Solo las rutas mejores","Las tablas ARP","La lista de vecinos"],"Todos los routers de la misma área tienen la misma LSDB. Con ella cada router corre SPF."],
+["ospf","El camino por radio es de 1 salto con costo 100. El del core son 2 saltos de 10 más 10. ¿Cuál elige OSPF?","El core: costo 20",["La radio, por tener menos saltos","Los dos, con ECMP","Ninguno"],"OSPF compara la suma de costos, no la cantidad de saltos."],
+["ospf","¿Cómo se calcula el costo de una interfaz?","Ancho de banda de referencia dividido entre la velocidad",["Velocidad entre referencia","Cantidad de saltos","Latencia medida"],"Con la referencia de fábrica (100 Mbps) un puerto de 100M y uno de 100G valen 1. En la red del curso se ajusta a 100 000 Mbps."],
+["ospf","¿Cuál es la referencia de ancho de banda por defecto en Cisco y Huawei?","100 Mbps",["1000 Mbps","10 000 Mbps","100 000 Mbps"],"Por eso se sube a 100 000 para que 10G cueste 10 y 1G cueste 100. Debe ser igual en todos los routers."],
+["ospf","Un router tiene la referencia en 100 y el resto en 100 000. ¿Qué pasa?","Los costos no coinciden y los caminos que eligen pueden diferir",["OSPF no arranca","Se pierde el vecino","Nada, es solo local"],"Puede salir tráfico por el enlace lento o ir por un lado y volver por otro."],
+["ospf","Una radio de 1G de respaldo tiene `ospf cost 1` fijo y el tráfico se va por ella en hora pico. ¿Qué haces como N1?","Documentas las salidas y la hora, revisas ambos extremos y escalas a N2",["Cambias el costo a 100","Apagas el puerto de la radio","Reinicias OSPF"],"El N1 no cambia configuración. Un costo fijo a mano manda sobre la fórmula."],
+["ospf","¿Cuál es la preferencia de OSPF interno en Huawei y qué le gana?","10; le gana a la estática (60)",["110; le gana a la estática (1)","150; le gana a BGP","60; empata con la estática"],"En Huawei, OSPF externo (ASE) es 150. En Cisco OSPF es 110 y pierde contra la estática (1)."],
+["ospf","En `[110/10]`, ¿qué es 110?","La distancia administrativa",["El costo","La cantidad de saltos","El número de proceso"],"La distancia compara fuentes (OSPF, estática, BGP). El costo compara caminos dentro de OSPF."],
+["ospf","¿Qué hace una interfaz pasiva en OSPF?","Anuncia su red pero no manda Hello, así que no tiene vecinos",["Manda Hello pero no recibe","Solo forma vecindad con el DR","Está apagada"],"Se usa en loopbacks y puertos hacia clientes. Si un enlace del core queda pasivo por error, no habrá vecino."],
+["ospf","El Dead Time de un vecino en `show ip ospf neighbor` baja de 40 a 30 y vuelve a 40. ¿Qué indica?","Los Hello están llegando con normalidad",["El vecino está por caerse","Hay un MTU distinto","El Hello está en 30 s"],"Nunca debe llegar a 0. Si llega a 0, el router da al vecino por caído."],
+["ospf","El vecino aparece en `show ip ospf neighbor` pero falta su loopback en la tabla de rutas OSPF. ¿Qué consecuencia tiene para BGP y MPLS?","Sus sesiones hacia ese router caen, porque se arman entre loopbacks",["Ninguna, BGP no usa loopbacks","Solo cae MPLS","Solo cae la gestión"],"Muchas caídas de BGP empiezan en OSPF."],
+["ospf","FortiGate muestra `Hello received 0 sent 45`. ¿Qué sospechas?","El Hello no le llega: filtro, multicast bloqueado u OSPF inactivo del otro lado",["Un MTU distinto","Un Router ID repetido","Costo mal puesto"],"Habla pero no escucha: es el síntoma de Init o de que no hay vecino."],
+["ospf","¿Cuándo se borra un LSA que no se refresca?","A los 60 minutos (MaxAge)",["A los 30 minutos","A los 40 segundos","Nunca"],"Cada router refresca sus LSA cada 30 minutos. Así desaparece la información de un router que se apagó sin avisar."],
+["ospf","En OSPF, ¿cómo se escribe el `network` en Cisco y Huawei, y en FortiGate?","Wildcard en Cisco y Huawei; máscara normal en FortiGate",["Máscara normal en todos","Wildcard en todos","Solo CIDR en todos"],"Wildcard 0.0.0.0 es solo esa IP; 0.0.0.255 es toda la /24."],
+["ospf","¿Qué comando muestra los vecinos OSPF en Cisco, Huawei y FortiGate?","`show ip ospf neighbor`, `display ospf peer brief`, `get router info ospf neighbor`",["`show ip ospf database`, `display ospf lsdb`, `get router info ospf database`","`show ip route ospf`, `display ip routing-table`, `get router info routing-table`","`show ip protocols`, `display ospf brief`, `get system status`"],"Es la primera pregunta del N1: ¿está el vecino esperado y en Full?"]
+,
+["ospf2","¿Cuál es la regla de oro de las áreas OSPF?","Toda área distinta de la 0 debe tocar el Área 0",["Las áreas pueden conectarse directo entre sí","El Área 0 solo existe en equipos Cisco","Cada área necesita su propio ASBR"],"El tráfico entre áreas siempre pasa por el backbone (Área 0). Un área que no lo toca queda aislada."],
+["ospf2","Un Cisco tiene `area 0` y el Huawei vecino `area 0.0.0.0`. ¿Forman vecindad?","Sí: son la misma área escrita de dos formas",["No, las áreas no coinciden","Solo si el Router ID es igual","Solo con mtu-ignore"],"Lo que no puede pasar es 0 en un lado y 10 en el otro: el área viaja en el Hello."],
+["ospf2","¿Qué es un ABR?","Un router con interfaces en el Área 0 y en otra área",["Un router que mete rutas externas en OSPF","Un router con todas sus interfaces en una sola área","El DR de una red broadcast"],"Guarda una LSDB por área y corre SPF en cada una. En el curso: PE-NOR-01 (Área 0 + Área 10)."],
+["ospf2","¿Qué es un ASBR?","Un router que mete en OSPF rutas que no son de OSPF (estáticas, BGP, ruta por defecto)",["Un router con interfaces en dos áreas","Un router interno del Área 10","El router que elige el DR"],"Genera LSA tipo 5. En el curso: FW-CEN-01, que además es backbone."],
+["ospf2","¿Qué tipos de LSA no salen de su área?","Tipos 1 y 2",["Tipos 3 y 4","Tipo 5","Tipo 7"],"Son el mapa detallado. Hacia afuera, el ABR solo manda un resumen (tipo 3)."],
+["ospf2","¿Qué describe el LSA tipo 3 y quién lo genera?","Las redes de un área, con su costo, anunciadas en otra; lo genera el ABR",["Los enlaces de cada router; lo genera cada router","Rutas externas; lo genera el ASBR","Los routers de un segmento; lo genera el DR"],"Tipo 3 = Summary. En Huawei aparece como Sum-Net."],
+["ospf2","¿Qué es el LSA tipo 5?","AS External: rutas externas que genera el ASBR y llegan a todo el dominio OSPF",["El resumen que genera el ABR","El LSA del DR","El LSA de un área NSSA"],"En la tabla se ven como O E1/O E2 (Cisco) u O_ASE (Huawei)."],
+["ospf2","En `display ospf lsdb` de Huawei, ¿qué tipo de LSA es Sum-Net?","Tipo 3",["Tipo 1","Tipo 4","Tipo 5"],"Router = 1, Network = 2, Sum-Net = 3, Sum-Asbr = 4, External = 5."],
+["ospf2","¿Qué LSA aparece en un área NSSA?","Tipo 7",["Tipo 2","Tipo 3","Tipo 4"],"Stub, totally stub y NSSA bloquean LSA externos. El N1 solo las reconoce."],
+["ospf2","En la tabla de rutas de Cisco ves `O IA`. ¿Qué significa?","La ruta viene de otra área a través de un ABR (LSA tipo 3)",["Es una ruta externa tipo 2","Es una ruta de la misma área","Es una ruta estática"],"O = misma área; O IA = otra área; O E1/E2 = externa."],
+["ospf2","Ves `O*E2 0.0.0.0/0 [110/1]`. ¿Qué dice el costo 1?","Solo el costo externo: E2 no suma el camino interno hasta el ASBR",["Que el ASBR está a un salto","Que es la ruta más cercana","Que es una ruta interna"],"E2 (por defecto) mantiene el costo externo fijo; E1 le suma el costo interno."],
+["ospf2","MTU distinto entre dos routers (Cisco). ¿Dónde se queda cada uno?","El de MTU menor en ExStart y el de MTU mayor en Exchange",["El de MTU mayor en ExStart y el menor en Exchange","Los dos en Init","Los dos en 2-Way"],"El DBD lleva el MTU; quien recibe un DBD con MTU mayor que el suyo lo descarta."],
+["ospf2","Entre dos Huawei con MTU distinto, ¿qué puede pasar?","Pueden llegar a Full, porque `ospf mtu-enable` suele venir apagado, y fallar después",["Nunca forman vecindad","Ajustan el MTU solos","Se quedan siempre en Init"],"Por eso el N1 compara el MTU de los dos lados aunque la vecindad esté en Full."],
+["ospf2","Alguien puso `ip ospf mtu-ignore` y la vecindad subió a Full. ¿Está resuelto?","No: solo se escondió la falla; los LSU grandes se pueden perder",["Sí, es la solución correcta","Sí, porque cambia el MTU","Sí, si es Cisco"],"Lo correcto es igualar el MTU en los dos extremos. Si ves mtu-ignore, anótalo en el ticket."],
+["ospf2","Los dos routers tienen MTU 1500 y aun así se atascan en Exchange. ¿Qué sospechas?","Algo en la capa 2 del medio (radio, convertidor, QinQ): prueba ping 1500 con DF",["Router ID duplicado","Área distinta","Hello/Dead distintos"],"Los Hello (chicos) pasan; los DBD y LSU (grandes) no."],
+["ospf2","Ping con DF: pasa con 1496 y falla con 1500 tras cambiar un radio. ¿Qué faltan esos 4 bytes?","La etiqueta QinQ que agrega el transporte del radio, sin MTU ajustado",["La cabecera TCP","El campo TTL","El FCS de la trama"],"El N1 no toca el MTU ni activa mtu-ignore: documenta la prueba y escala a transporte/radio."],
+["ospf2","Dos routers de la misma área (no vecinos) tienen el mismo Router ID. ¿Qué se ve?","Llegan a Full, pero pelean por el mismo LSA 1: SPF sin parar y rutas que aparecen y desaparecen",["La vecindad nunca sube","Nada, no afecta","Se quedan en ExStart"],"Si son vecinos directos, la vecindad no sube (Init o no aparece)."],
+["ospf2","Se cambió el Router ID en la configuración. ¿Cuándo aplica?","Al reiniciar el proceso OSPF, lo que corta todas las vecindades (tarea de N2)",["De inmediato","Al guardar con save","Al reiniciar solo la interfaz"],"clear ip ospf process / reset ospf process / execute router clear ospf process, en ventana de mantenimiento."],
+["ospf2","Ves un LSA en `show ip ospf database`. ¿La ruta ya se usa?","No necesariamente: tiene que estar en la tabla de rutas; revisa las dos",["Sí, siempre","Sí, si es tipo 1","Solo en Huawei"],"La LSDB es el mapa; SPF tiene que calcular la ruta y llevarla a la tabla."],
+["ospf2","En Cisco hay `mtu` e `ip mtu`. ¿Cuál compara OSPF?","El `ip mtu`",["El `mtu` de la interfaz","Ninguno","El de la VLAN"],"mtu es el tamaño en la interfaz; ip mtu es el que usa IP."],
+["ospf3","¿Cuál es el tipo de red OSPF de fábrica en Ethernet?","Broadcast",["Punto a punto","NBMA","Punto a multipunto"],"En el core se fuerza punto a punto aunque el puerto sea Ethernet."],
+["ospf3","¿Hay DR y BDR en un enlace punto a punto?","No",["Sí, siempre","Solo el DR","Solo si hay más de dos routers"],"Con dos routers no tiene sentido elegir DR."],
+["ospf3","¿Qué temporizadores usa NBMA?","Hello 30 / Dead 120",["Hello 10 / Dead 40","Hello 5 / Dead 20","Hello 60 / Dead 180"],"Si aparece en un equipo viejo, no coincide con los 10/40 de Ethernet."],
+["ospf3","Dos DROTHER en el mismo segmento broadcast. ¿En qué estado quedan entre ellos?","2-Way, y es lo normal",["Full","ExStart","Down, es una falla"],"Los DROTHER solo llegan a Full con el DR y el BDR."],
+["ospf3","¿Quién escucha la dirección 224.0.0.6?","Solo el DR y el BDR",["Todos los routers OSPF","Solo los DROTHER","Los vecinos BGP"],"Un DROTHER manda sus novedades a 224.0.0.6; el DR las reparte por 224.0.0.5."],
+["ospf3","¿Cómo se elige el DR?","Gana la prioridad más alta; si empatan, el Router ID más alto",["Gana el Router ID más bajo","Gana la IP más baja","Gana el que arrancó último"],"El segundo lugar es el BDR. La prioridad va de 0 a 255; de fábrica es 1."],
+["ospf3","Una interfaz tiene prioridad 0. ¿Qué significa?","Ese router nunca será DR ni BDR",["Será siempre DR","Será BDR","OSPF queda apagado"],"Se usa, por ejemplo, para que un firewall no cargue con el trabajo del DR."],
+["ospf3","Llega un router con prioridad mayor que la del DR actual. ¿Qué pasa?","Nada: no hay preempción; el DR sigue hasta que caiga",["Se vuelve DR de inmediato","Se vuelve DR a los 40 s","Se vuelve BDR y el DR cae"],"Por eso el DR de hoy depende del orden en que arrancaron los equipos."],
+["ospf3","Una interfaz broadcast aparece en estado WAITING. ¿Qué hace?","Espera el Wait (40 s) para ver si ya hay DR antes de proponerse",["Está caída","Espera la autenticación","Está en ExStart"],"En un enlace de core, Type Broadcast y State Waiting indican que quedó con el tipo de fábrica."],
+["ospf3","¿Por qué se fuerza punto a punto en los enlaces /31 del core?","Sin elección de DR, sin la espera de 40 s y sin LSA tipo 2",["Permite más de dos routers","Sube el costo","Usa temporizadores de NBMA"],"En la tabla de vecinos se ve FULL/ - (el guion = sin DR)."],
+["ospf3","Un lado del enlace está en punto a punto y el otro en broadcast. ¿Qué pasa?","Puede llegar a Full, pero faltan rutas de ese vecino",["Nunca hay Hello","Se queda en Init","La interfaz cae"],"Cada lado describe el enlace distinto en su LSA tipo 1 y SPF no arma el camino."],
+["ospf3","Se corta la fibra entre dos convertidores sin LFP. ¿Cuándo se entera OSPF?","Unos 40 s después, al vencer el Dead: el puerto del router sigue arriba",["De inmediato","Nunca","A los 180 s"],"Durante esos 40 s el tráfico va hacia un enlace muerto."],
+["ospf3","¿Cómo se ve en el log un corte detrás de un convertidor sin LFP?","Vecino caído por Dead timer expired y ningún mensaje de la interfaz",["Interface down or detached","Too many retransmissions","Bad peer AS"],"Con LFP, la interfaz cae y el vecino cae por Interface down en el mismo segundo."],
+["ospf3","¿Qué hace BFD?","Detecta la caída en menos de un segundo con sondeos de pocos ms, aunque el puerto siga arriba",["Cambia el costo OSPF","Elige el DR","Sube el MTU"],"Valores demasiado agresivos sobre un radio inestable causan caídas falsas."],
+["ospf3","Con lluvia, el radio baja su modulación de 400 a 20 Mbps. ¿Qué hace OSPF?","Nada: el puerto sigue en 1 Gbps y el costo no cambia, así que hay congestión",["Sube el costo solo","Tumba la vecindad siempre","Baja el puerto a 100 Mbps"],"El tráfico sigue entrando al radio y se descarta."],
+["ospf3","Vecindad sobre radio que cae por Dead timer expired y se recupera sola varias veces. ¿Qué haces?","Cruzar las horas con RSSI, SNR, modulación y alarmas del radio, y escalar a radio",["Cambiar el costo","Forzar punto a punto","Reiniciar OSPF"],"Es flapping del medio: cada caída provoca SPF en toda el área."],
+["ospf3","¿Para qué sirve usar /31 en enlaces punto a punto?","Dos direcciones útiles sin desperdiciar red ni broadcast",["Permite cuatro routers","Es obligatorio para OSPF","Evita el uso de DR"],"Está definido en la RFC 3021."],
+["ospf3","¿Qué direcciones multicast usa OSPFv3?","FF02::5 y FF02::6",["224.0.0.5 y 224.0.0.6","FF02::1 y FF02::2","FF02::9 y FF02::A"],"Las mismas reglas de DR que en OSPFv2."],
+["ospf3","5 routers en un switch, sin DR. ¿Cuántas vecindades completas habría?","10",["5","20","25"],"n × (n − 1) ÷ 2. Con 10 routers serían 45."],
+["bgp1","¿Sobre qué viaja BGP?","Una conexión TCP al puerto 179",["Protocolo IP 89","UDP 179","TCP 89"],"OSPF usa el protocolo IP 89; BGP usa TCP 179."],
+["bgp1","¿Cuál es la diferencia entre eBGP e iBGP?","eBGP es entre AS distintos; iBGP dentro del mismo AS",["eBGP es dentro del AS; iBGP entre AS","eBGP es para IPv6","iBGP es solo para clientes"],"En la configuración: remote-as distinto al propio = eBGP; igual = iBGP."],
+["bgp1","¿Cuál es el rango de AS privados de 2 bytes?","64512 a 65534",["1 a 1023","65535 a 70000","10000 a 20000"],"Se usan con clientes sin AS propio, como el hotel del curso (AS 65020)."],
+["bgp1","¿Qué distancia administrativa tienen eBGP e iBGP en Cisco?","20 y 200",["200 y 20","110 y 120","1 y 60"],"eBGP 20 le gana a OSPF (110); iBGP 200 pierde."],
+["bgp1","¿Qué TTL usa eBGP de fábrica?","1",["255","64","128"],"Si el vecino está a más de un salto o la sesión es entre loopbacks, hace falta eBGP Multihop."],
+["bgp1","¿Entre qué IP se arma una sesión iBGP y qué comando lo permite?","Entre loopbacks, con update-source (Cisco/FortiGate) o connect-interface (Huawei)",["Entre IP físicas, sin comando especial","Entre loopbacks, con next-hop-self","Entre IP públicas, con multihop"],"Sin update-source, el router sale con la IP física, el vecino no la reconoce y la sesión no sube."],
+["bgp1","¿De qué depende iBGP para levantar la sesión?","De OSPF, que lleva las loopbacks",["De STP","De DNS","De ARP"],"Si OSPF pierde la loopback del vecino, no hay TCP y la sesión cae."],
+["bgp1","¿Para qué sirve next-hop-self (next-hop-local en Huawei)?","Para que el next-hop sea la loopback del borde, alcanzable por OSPF",["Para subir el TTL","Para filtrar rutas","Para elegir el DR"],"En iBGP el next-hop no cambia; sin esto, los PE no sabrían llegar al next-hop del tránsito."],
+["bgp1","¿Qué dice el split horizon de iBGP?","Un router no pasa a otro vecino iBGP lo que aprendió por iBGP",["Un router no pasa rutas a vecinos eBGP","Un router no anuncia su loopback","Un router no acepta rutas con su AS"],"Por eso hace falta malla completa o Route Reflectors."],
+["bgp1","Una sesión BGP aparece en Active. ¿Qué significa?","El intento de TCP falló y reintenta: problema de transporte",["La sesión está arriba","Es un problema de AS","Está apagada a mano"],"Active no es «activa»: es un intento fallido. Revisa ruta de ida y vuelta, filtro TCP 179, update-source, multihop, MD5."],
+["bgp1","La sesión sube a OpenSent u OpenConfirm y vuelve a Idle. ¿Qué tipo de problema es?","De parámetros: AS equivocado o Router ID duplicado",["De transporte","De MTU","De cable"],"El TCP sí sube, pero el Open se rechaza."],
+["bgp1","Ves `Idle (Admin)` en el resumen BGP. ¿Qué pasó?","Alguien apagó la sesión con shutdown",["Falla de TCP","Superó el máximo de prefijos","Hold time expired"],"Se consulta si hay un cambio programado antes de escalar."],
+["bgp1","En `show ip bgp summary` la columna State/PfxRcd muestra 85. ¿Qué significa?","La sesión está Established y recibió 85 prefijos",["Está en estado 85","Lleva 85 minutos caída","Tiene 85 errores"],"Lo único que dice que la sesión está bien es un número en esa columna."],
+["bgp1","¿Cuáles son los temporizadores Keepalive / Hold de fábrica en BGP?","60 / 180 s",["10 / 40 s","3 / 9 s","30 / 90 s"],"En sesiones con clientes es común 3/9 para detectar antes una caída."],
+["bgp1","Log: `received from neighbor ... (peer in wrong AS)`. ¿Qué pasó?","El vecino nos rechazó porque espera otro AS",["Nosotros rechazamos al vecino","La contraseña MD5 es distinta","Venció el hold time"],"received = nos rechazaron; sent = rechazamos nosotros. Se compara el AS con la orden de servicio."],
+["bgp1","Log: `sent to neighbor ... (hold time expired)`. ¿Qué revisas?","El camino hacia el vecino (OSPF, enlaces, errores CRC): este router dejó de recibir Keepalives",["El AS del vecino","La contraseña","El filtro de prefijos"],"sent: este router dejó de escuchar al vecino."],
+["bgp1","La contraseña MD5 es distinta en un lado. ¿En qué estado queda la sesión?","Active: el TCP ni siquiera sube",["Established con 0 prefijos","OpenConfirm","Idle (Admin)"],"En Cisco se ve %TCP-6-BADAUTH: Invalid MD5 digest."],
+["bgp1","¿Por qué un ping normal no basta para descartar una falla de iBGP?","Porque sale con la IP de la interfaz; hay que hacerlo con origen en la loopback (source / -a)",["Porque BGP no usa IP","Porque el ping usa UDP","Porque BGP bloquea ICMP"],"Además, un filtro puede dejar pasar ICMP y bloquear el TCP 179."],
+["bgp1","En Huawei, ¿cómo ves las sesiones BGP de un cliente L3VPN?","`display bgp vpnv4 vpn-instance <nombre> peer`",["`display bgp peer`","`display ip vpn-instance`","`display bgp group`"],"No aparecen en display bgp peer porque viven dentro de la VRF."],
+["bgp1","En Huawei, ¿qué comando corresponde a eBGP Multihop?","`peer <IP> ebgp-max-hop 2`",["`peer <IP> connect-interface LoopBack0`","`peer <IP> next-hop-local`","`peer <IP> reflect-client`"],"En Cisco: neighbor <IP> ebgp-multihop 2."],
+["bgp2","¿Cómo gana el Local Preference?","El más alto; de fábrica vale 100",["El más bajo","El más corto","Gana el más antiguo"],"Regla: Local Pref alto, MED bajo, AS_Path corto."],
+["bgp2","¿Cómo gana el MED?","El más bajo",["El más alto","El más largo","Gana si es 100"],"Si no viene, se toma como 0. Aparece como Metric (Cisco) o MED (Huawei)."],
+["bgp2","¿Cómo gana el AS_Path?","El más corto",["El más largo","El que empieza en 64500","El que tiene más AS privados"],"Se compara después del Local Preference."],
+["bgp2","AS_Path `64496 64510 64511 i`. ¿Quién la dio y dónde nació?","La dio el AS 64496 y nació en el AS 64511",["La dio el 64511 y nació en el 64496","Nació en el 64510","Es una ruta interna"],"Se lee de izquierda a derecha: el primero es el vecino; el último, el origen."],
+["bgp2","¿Hasta dónde viaja el Local Preference?","Por iBGP dentro del AS; nunca sale por eBGP",["A todos los AS de Internet","Solo al vecino eBGP","No viaja: es solo local"],"Todos los routers del ISP ven el mismo valor y deciden igual."],
+["bgp2","¿Entre qué rutas se compara el MED de fábrica?","Solo entre rutas del mismo AS vecino",["Entre cualquier AS","Solo entre rutas iBGP","Nunca se compara"],"No sirve para elegir entre Tránsito A y Tránsito B."],
+["bgp2","¿Qué es el AS_Path prepending?","Repetir el AS propio al anunciar para que ese camino parezca más largo",["Borrar el AS del vecino","Agregar el AS del cliente","Cambiar el Local Preference"],"Sirve para influir en el tráfico de entrada. Es una sugerencia: el otro AS decide."],
+["bgp2","¿Qué tráfico controla el ISP y cuál solo puede sugerir?","Controla la salida (Local Pref); la entrada solo la sugiere (prepending, MED)",["Controla la entrada; sugiere la salida","Controla las dos","No controla ninguna"],"Quien decide por dónde entra el tráfico es el otro AS."],
+["bgp2","En la selección BGP, ¿qué se compara primero?","Local Preference",["AS_Path","MED","Costo IGP"],"Orden: next-hop alcanzable, Weight/PrefVal, Local Pref, ruta local, AS_Path, Origin, MED, eBGP sobre iBGP, costo IGP."],
+["bgp2","¿Qué es el Weight de Cisco (PrefVal en Huawei)?","Un valor local del router: no viaja y gana el más alto",["Un atributo que viaja a todos","El MED de Cisco","El costo de OSPF"],"Weight 32768 con next-hop 0.0.0.0 indica que la ruta la origina ese router."],
+["bgp2","¿Cuál es el orden de preferencia del Origin?","i antes que e antes que ?",["? antes que i antes que e","e antes que i","Todos valen igual"],"i = IGP (network), e = EGP (histórico), ? = incompleto (redistribución)."],
+["bgp2","En `show ip bgp`, ¿qué significan `*` y `>`?","`*` es válida; `>` es la mejor, la que se usa",["`*` es la mejor; `>` es válida","Las dos son la mejor","`>` significa externa"],"Una ruta sin * ni > está pero no es válida (por ejemplo, next-hop inalcanzable)."],
+["bgp2","El hotel con dos enlaces dejó de enviar MED. ¿Qué pasa en Ficticel?","Empatan hasta «eBGP sobre iBGP» y cada PE usa su propio enlace: entra tráfico por el respaldo",["Nada cambia","Se cae la sesión","Todo entra por el primario"],"Antes ganaba el MED 50 del primario frente al 200 del respaldo."],
+["bgp2","Una ruta BGP aparece sin `*` ni `>`. ¿Qué revisas primero?","Si el next-hop es alcanzable: revisa OSPF antes que BGP",["El MED","La contraseña MD5","El Local Preference"],"Si no hay ruta hacia el next-hop, la ruta ni compite."],
+["bgp2","¿Qué es una fuga de rutas (route leak) hacia un tránsito?","Pasarle a un tránsito lo aprendido de otro: Ficticel hace de puente gratis",["Perder rutas por un corte","Anunciar el bloque propio","Recibir la ruta por defecto"],"A tránsitos y peers solo se anuncian las rutas propias y de clientes."],
+["bgp2","¿Qué se hace con el AS privado de un cliente antes de anunciar a Internet?","Se quita (remove-private-as en Cisco, public-as-only en Huawei)",["Se repite tres veces","Se cambia por 65535","Se deja igual"],"Afuera, el bloque del cliente se ve como originado por el ISP."],
+["bgp2","En Huawei, ¿cómo se aplica una política a lo que llega del vecino?","`peer <IP> route-policy <nombre> import`",["`peer <IP> route-policy <nombre> export`","`neighbor <IP> route-map <nombre> out`","`peer <IP> ip-prefix <nombre> export`"],"import = entrada; export = salida. En Cisco: in / out."],
+["bgp2","Huawei muestra «not preferred for MED» en una ruta. ¿Qué significa?","Perdió la comparación de MED frente a otra ruta",["Su next-hop es inalcanzable","No tiene MED","Es la mejor"],"«not preferred for peer type» significa que perdió en eBGP frente a iBGP."],
+["bgp2","Todo el tráfico sale por Tránsito B y las dos rutas por defecto muestran localpref 100. ¿Qué pasó?","La política que ponía Local Pref 200 a Tránsito A ya no se aplica; con empate gana la más antigua",["Tránsito A está caído","El MED de B es menor","El AS_Path de B es más largo"],"El N1 escala con show ip bgp 0.0.0.0 y el log de la sesión con A; no toca la política."],
+["bgp3","En una sesión BGP de cliente, ¿qué revisas antes que BGP?","La interfaz/VLAN del PE y el ping al CPE",["El Local Preference","Los Route Reflectors","El MED"],"Si el ping no responde, no se mira BGP: la falla está en la última milla."],
+["bgp3","Temporizadores 3/9 y un corte detrás de un convertidor sin LFP. ¿Cuándo cae la sesión?","A los 9 s, al vencer el Hold Time",["De inmediato","A los 180 s","Nunca"],"Si el corte apaga el puerto del PE, cae de inmediato. Con BFD, en menos de 1 s."],
+["bgp3","¿Qué muestra received-routes?","Todo lo que mandó el vecino, antes de los filtros",["Lo que se aceptó","Lo que se anuncia al vecino","Solo la ruta por defecto"],"routes (o la tabla BGP) = lo aceptado; advertised-routes = lo que sale hacia el vecino."],
+["bgp3","received-routes da error o sale vacío. ¿Qué puede faltar?","soft-reconfiguration inbound (Cisco/FortiGate) o keep-all-routes (Huawei)",["La ruta por defecto","El maximum-prefix","La VRF"],"No significa que el cliente no mande rutas: mira el contador de prefijos o routes."],
+["bgp3","Una ruta aparece en received-routes sin `*`. ¿Qué pasó?","El filtro de entrada la descartó",["El vecino no la mandó","Se anunció al tránsito","Es la mejor ruta"],"Normalmente porque no está en la orden de servicio."],
+["bgp3","¿Cómo se ve en Cisco una sesión cerrada por superar el máximo de prefijos?","Idle (PfxCt)",["Active","Idle (Admin)","OpenSent"],"El log muestra %BGP-3-MAXPFXEXCEED. El cliente tiene que corregir lo que anuncia."],
+["bgp3","¿Por qué nunca se acepta 0.0.0.0/0 de un cliente?","Porque el ISP es quien da salida a Internet; podría mandarle tráfico de otros",["Porque no cabe en la tabla","Porque rompe OSPF","Porque es un AS privado"],"Tampoco se aceptan prefijos que no sean del cliente (secuestro de prefijo)."],
+["bgp3","¿Para qué sirve `default-route-advertise` (Huawei) o `default-originate` (Cisco)?","Para entregarle la ruta por defecto al cliente",["Para aceptar la ruta por defecto del cliente","Para filtrar prefijos","Para subir el TTL"],"Si falta, el cliente no navega aunque la sesión esté arriba."],
+["bgp3","Sesión Established, pero advertised-routes hacia el hotel muestra 0 rutas. ¿Qué pasa?","El cliente no navega: no se le anuncia la ruta por defecto",["Todo está bien","El cliente manda de más","La sesión va a caer"],"Falta default-route-advertise o la política de salida la bloquea. Se escala."],
+["bgp3","La sesión sube pero cae justo al enviar la tabla. ¿Qué sospechas?","MTU menor en algún punto de la última milla: los Update grandes no pasan",["AS equivocado","Contraseña MD5","Router ID duplicado"],"Lo mismo que con OSPF: lo pequeño pasa y lo grande no."],
+["bgp3","Una VLAN mal configurada o un ARP sin resolver en la última milla. ¿Cómo se ve la sesión?","Nunca pasa de Active / Connect",["Established con 0 prefijos","Idle (PfxCt)","OpenConfirm"],"El TCP 179 nunca se completa."],
+["bgp3","¿Cómo haces ping al CE de un cliente L3VPN en Huawei?","`ping -vpn-instance LUMEN -a <ip-PE> <ip-CE>`",["`ping <ip-CE>`","`ping -s 1472 -f <ip-CE>`","`display bgp peer <ip-CE>`"],"Sin la VPN-instance, el ping busca en la tabla global y falla."],
+["bgp3","Una sucursal nueva anuncia 172.16.12.0/24, que aparece en received-routes sin `*`. ¿Conclusión?","El filtro de entrada solo autoriza las redes de la orden original",["El cliente no la anuncia","La sesión está caída","Falta la ruta por defecto"],"No es falla de la red: falta actualizar la orden de servicio y el filtro. El N1 no lo modifica."],
+["bgp3","Ping al CPE con 20 % de pérdida. ¿Qué revisas?","La interfaz y el medio de la última milla (convertidor, fibra, ONT, radio) antes que BGP",["El Local Preference","El RR","El filtro de entrada"],"La mayoría de los reclamos de «se cayó el BGP» son de la última milla."],
+["bgp3","¿Qué significa `peer 198.51.100.1 route-limit 10 80` en Huawei?","Máximo 10 prefijos, con alerta al 80 %",["10 sesiones con 80 rutas","Hold time de 10 s y keepalive de 80","MED 10 y Local Pref 80"],"En Cisco: maximum-prefix 10 80."],
+["bgp3","Si el CPE es del cliente, ¿hasta dónde llega el diagnóstico del ISP?","Hasta el PE y el ping al CPE",["Hasta la LAN del cliente","Hasta la configuración BGP del CPE","No se diagnostica nada"],"Si el CPE es administrado por el ISP, el N1 puede leerlo también."],
+["rr1","¿Cuántas sesiones necesita una malla completa iBGP de 10 routers?","45",["10","20","90"],"n × (n − 1) ÷ 2. Con 50 routers serían 1225."],
+["rr1","¿Dónde se configura que un router es cliente de un Route Reflector?","Solo en el RR",["Solo en el cliente","En los dos","En OSPF"],"El cliente no sabe que es cliente: tiene una sesión iBGP normal."],
+["rr1","¿Pasa el tráfico de los clientes por el Route Reflector?","No: el RR solo maneja rutas; el tráfico va por el camino de OSPF",["Sí, todo el tráfico","Solo el tráfico de Internet","Solo si es Huawei"],"El RR está en el plano de control."],
+["rr1","En una malla completa falta una sesión, pero el ping entre loopbacks responde. ¿Qué pasa?","Falla silenciosa: las rutas BGP de ese par no llegan",["Todo está bien","Se cae OSPF","El ping no respondería"],"El ping viaja por OSPF; las rutas iBGP no se pasan entre vecinos iBGP."],
+["rr1","Con dos RR, cae uno. ¿Qué pasa en los PE?","Sin pérdida de rutas, pero sin respaldo: se escala",["Pierden todas las rutas","Nada, no hace falta escalar","Se cae OSPF"],"Una sesión en Active y la otra Established con todas las rutas."],
+["rr1","Caen los dos RR. ¿Qué pasa en un PE?","Pierde todas las rutas iBGP (ruta por defecto, rutas de otros PE): falla crítica",["Nada, usa OSPF","Pierde solo la ruta por defecto","Solo pierde las rutas de clientes"],"Solo conserva lo que aprende de sus propios clientes."],
+["rr1","Tres PE pierden la sesión con el mismo RR a la vez. ¿Dónde está el problema?","En ese RR o en el camino hacia él",["En cada PE por separado","En los clientes","En el otro RR"],"Se confirma con ping desde un PE a las loopbacks de los dos RR."],
+["rr1","En Huawei, ¿qué palabra hace de un equipo un Route Reflector?","`reflect-client`",["`next-hop-local`","`connect-interface`","`route-limit`"],"En Cisco: route-reflector-client; en FortiGate: set route-reflector-client enable."],
+["rr1","¿Cómo reconoces un RR en `display bgp peer`?","Tiene muchos vecinos iBGP, todos del mismo AS",["Tiene solo vecinos eBGP","Tiene un solo vecino","Sus sesiones están en Active"],"Un PE cliente tiene dos vecinos iBGP (los RR) y sus clientes eBGP."],
+["rr1","En Cisco, ¿dónde aparece «Route-Reflector Client» en `show ip bgp neighbors`?","Solo en el RR",["Solo en el cliente","En los dos","En ninguno"],"Es la pista para saber quién es RR."],
+["rr1","Además de los RR, ¿qué otra solución estándar existe a la malla completa?","Las confederaciones (dividir el AS en sub-AS)",["Más sesiones eBGP","Usar OSPF en vez de iBGP","Usar VLAN"],"Los ISP suelen usar RR."],
+["rr1","¿Qué cambia el RR al reflejar una ruta?","Nada del AS_Path y, de fábrica, tampoco el next-hop",["Pone su next-hop","Agrega su AS","Sube el Local Preference"],"Solo agrega Originator ID y Cluster List."],
+["rr2","Un RR recibe una ruta de un cliente. ¿A quién se la pasa?","A los otros clientes y a los no clientes",["Solo a sus clientes","Solo a los no clientes","A nadie"],"Nunca se la devuelve a quien se la envió."],
+["rr2","Un RR recibe una ruta de un no cliente. ¿A quién se la pasa?","Solo a sus clientes",["A todos","Solo a los no clientes","A nadie"],"Se supone que los no clientes ya tienen malla entre ellos."],
+["rr2","Un RR recibe una ruta de un vecino eBGP. ¿A quién se la pasa?","A todos: clientes y no clientes",["Solo a sus clientes","Solo a los no clientes","A nadie"],"Igual que cualquier router BGP con lo que aprende por eBGP."],
+["rr2","¿Cuántas rutas por prefijo refleja un RR (sin add-path)?","Solo su mejor ruta",["Todas las que conoce","Dos","Ninguna"],"Los clientes reciben el camino que eligió el RR, aunque desde el cliente otro fuera mejor."],
+["rr2","¿Qué es el Originator ID?","El Router ID de quien originó la ruta dentro del AS",["El Router ID del RR","El AS del cliente","El Cluster ID"],"El RR aparece en la Cluster List, no en el Originator."],
+["rr2","¿Qué guarda la Cluster List?","El Cluster ID de cada RR por el que pasó la ruta, el más reciente a la izquierda",["Los AS por los que pasó","Los next-hop","Los clientes del RR"],"Cada RR agrega el suyo al principio."],
+["rr2","¿Cuándo descarta un RR una ruta por la Cluster List?","Cuando la ruta trae su propio Cluster ID",["Cuando la lista es larga","Cuando trae el Originator de otro","Nunca"],"Un router descarta la ruta si el Originator ID es su propio Router ID."],
+["rr2","¿Cuál es el Cluster ID de fábrica?","El Router ID del RR",["0.0.0.0","El AS","El Router ID del cliente"],"Se puede fijar a mano: reflector cluster-id (Huawei), bgp cluster-id (Cisco)."],
+["rr2","¿Se configura next-hop-self en el RR?","No: haría pasar el tráfico por el RR; lo usan el borde y los PE",["Sí, siempre","Solo en Huawei","Solo con clientes eBGP"],"El next-hop tiene que ser alcanzable por OSPF desde cada cliente."],
+["rr2","Una ruta reflejada aparece `(inaccessible)` y «no best path». ¿Dónde está el problema?","En OSPF: no conoce el next-hop (la loopback del origen)",["En el RR","En el filtro","En el MED"],"Se revisa la tabla de rutas hacia el next-hop."],
+["rr2","Dos clústeres distintos quedaron con el mismo Cluster ID por error. ¿Qué pasa?","Un RR descarta rutas válidas del otro y algunos PE no ven prefijos",["Nada","Las sesiones caen","Se duplican todas las rutas"],"Se revisa el Cluster ID de cada RR y la Cluster List de la ruta."],
+["rr2","Un PE quedó como no cliente (falta reflect-client). ¿Qué deja de recibir?","Lo que el RR aprendió de otros no clientes",["Todo","Solo la ruta por defecto","Nada, recibe todo"],"Recibe lo de los clientes, pero no lo de no clientes."],
+["rr2","Al trazar un prefijo, ¿qué cuatro preguntas haces en cada salto?","¿Llegó?, ¿con qué next-hop?, ¿es la mejor (>)? y ¿qué Originator y Cluster list trae?",["¿Ping?, ¿ARP?, ¿VLAN?, ¿MTU?","¿AS?, ¿MED?, ¿Weight?, ¿TTL?","¿Hello?, ¿Dead?, ¿Área?, ¿Costo?"],"El primer salto donde la respuesta no es la esperada es donde está el problema."],
+["rr2","Una ruta trae «Originator 10.255.0.21, Cluster list 10.255.0.101». ¿Qué significa?","La originó 10.255.0.21 y pasó por el RR 10.255.0.101",["La originó el RR 10.255.0.101","Pasó por el router 10.255.0.21","Es una ruta eBGP"],"Si llega dos veces (una por cada RR), la redundancia funciona."],
+["rr2","Dos rutas iguales en todo lo demás. ¿Cuál prefiere BGP?","La de Cluster List más corta",["La de Cluster List más larga","La del RR con Router ID más alto","Ninguna"],"Pasó por menos RR."],
+["filt","¿Sobre qué trabaja un filtro de rutas?","Sobre los avisos (rutas), no sobre el tráfico",["Sobre los paquetes de datos","Sobre las VLAN","Sobre los puertos TCP"],"Mirar el contenido de los paquetes es trabajo de un firewall."],
+["filt","¿Qué diferencia hay entre una prefix-list y una route-map?","La prefix-list dice qué redes coinciden; la route-map dice qué hacer (pasar, bloquear o cambiar atributos)",["Son lo mismo","La route-map solo sirve para OSPF","La prefix-list cambia el Local Preference"],"Analogía: la lista de invitados y el portero."],
+["filt","Regla `permit 203.0.113.0/24 le 29`. ¿Coincide 203.0.113.16/30?","No: /30 está fuera del rango /24 a /29",["Sí","Solo en Huawei","Solo con ge 30"],"Coinciden 203.0.113.0/24 y 203.0.113.16/29; no un /30 ni un /23."],
+["filt","Regla `permit 203.0.113.0/24` (sin ge ni le). ¿Coincide el /29 del hotel?","No: solo coincide el /24 exacto",["Sí, el /29 está dentro","Sí, si es iBGP","Solo con route-map"],"Sin rango, solo el largo exacto."],
+["filt","¿Qué selecciona `0.0.0.0/0 le 32`?","Cualquier ruta («todo»)",["Solo la ruta por defecto","Nada","Solo las /32"],"`0.0.0.0/0` sin le selecciona solo la ruta por defecto."],
+["filt","¿Qué selecciona `ge 26 le 28` sobre un /24?","Solo /26, /27 y /28 de ese bloque",["Desde /24 hasta /28","Desde /26 hasta /32","Solo /26"],"Siempre: largo del prefijo ≤ ge ≤ le ≤ 32."],
+["filt","¿Cómo se lee una prefix-list?","Gana la primera línea que coincide, de la secuencia más baja a la más alta",["Gana la última línea","Se aplican todas","Gana la más específica siempre"],"Al coincidir, aplica su acción y deja de leer (first match)."],
+["filt","¿Qué hay al final de toda prefix-list y route-map?","Un deny implícito: lo que no coincidió no pasa",["Un permit implícito","Nada","Un refresco automático"],"Por eso una lista solo con deny bloquea todo: hay que terminarla con permit 0.0.0.0/0 le 32."],
+["filt","seq 5 `permit 0.0.0.0/0 le 32` y seq 10 `deny 10.0.0.0/8 le 32`. ¿Se bloquean las redes 10.x?","No: la línea 5 coincide primero y la 10 nunca se lee",["Sí","Solo las /32","Solo en Cisco"],"Primero lo específico (el deny) y al final lo general."],
+["filt","Una cláusula de route-map sin `match`. ¿Con qué rutas coincide?","Con todas",["Con ninguna","Solo con la ruta por defecto","Solo con rutas iBGP"],"Por eso TRANSITO-A-IN sin match pone Local Pref 200 a todo lo de Tránsito A."],
+["filt","¿Qué significa permit en una prefix-list y en una route-map?","En la prefix-list: «coincide»; en la route-map: «pasa»",["En las dos: «pasa»","En las dos: «coincide»","En la prefix-list: «pasa»; en la route-map: «coincide»"],"Una route-map deny que llama a una prefix-list permit bloquea las rutas de esa lista."],
+["filt","En Huawei, ¿qué significan import y export al aplicar un filtro?","import = entrada (lo que nos mandan); export = salida (lo que anunciamos)",["import = salida; export = entrada","Los dos son de entrada","Son solo para OSPF"],"En Cisco/FortiGate: in / out."],
+["filt","¿Qué filtro protege de lo que anuncia mal un cliente?","El de entrada (in / import)",["El de salida (out / export)","El de OSPF","Ninguno"],"Un filtro bueno en el sentido equivocado no protege nada."],
+["filt","En la redistribución de un ASBR, ¿qué pasa con lo que no pasa el filtro?","Nunca existe en OSPF: no hay LSA ni ruta en ningún router",["Entra como O IA","Entra con costo alto","Queda solo en la LSDB"],"Lo que sí pasa se vuelve LSA tipo 5 (O E2 / O_ASE)."],
+["filt","Un router tiene `filter-policy ... import` en OSPF. ¿Qué efecto tiene?","El LSA sigue en la LSDB y viaja, pero ese router no instala la ruta",["Borra el LSA de toda el área","Bloquea los Hello","Cambia el costo"],"Pista: está en display ospf lsdb y no en display ip routing-table."],
+["filt","Se corrigió un filtro BGP y todo sigue igual. ¿Causa típica?","Falta el refresco suave (clear ip bgp ... soft / refresh bgp)",["Hay que reiniciar el equipo","El filtro tarda 24 h","Hay que borrar la sesión"],"El refresco no tira la sesión. El N1 no lo ejecuta: lo menciona al escalar."],
+["filt","El borde anuncia 900 000 prefijos a Tránsito B. ¿Causa típica?","La route-map de salida no tiene match o se quitó del vecino: es un route leak",["Es normal","El cliente manda de más","Falta el Local Preference"],"Es urgente: se escala de inmediato."],
+["filt","`display ip ip-prefix HOTEL-IN` muestra Permitted 0 con «permit 203.0.113.16/29 ge 30 le 32». ¿Por qué?","El rango exige /30 a /32 y el hotel anuncia un /29",["El hotel no anuncia nada","La sesión está caída","Falta keep-all-routes"],"La ruta cae en el deny implícito. Se escala con received-routes y los contadores."],
+["filt","Una ruta llegó (received-routes) pero no se aceptó. ¿Dónde está el filtro?","En la entrada",["En la salida","En el vecino","En OSPF"],"Llegó y no se aceptó = entrada; se aceptó y no se anunció = salida; no llegó = el vecino."]
+];
+const CARDS = RAW.map((r,i)=>({id:i,t:r[0],q:r[1],c:r[2],w:r[3],e:r[4]}));
+
+/* [título, [paso, por qué], ...] en el orden correcto */
+const PUZ = [
+["Diagnóstico por capas (bottom-up)",
+ ["Capa 1: LED del puerto, cable, conector y potencia óptica","La mayoría de las fallas están en las capas bajas."],
+ ["Capa 2: VLAN asignada y si la MAC fue aprendida","Con enlace físico, confirma que la trama llega a la VLAN correcta."],
+ ["Capa 3: IP, gateway y rutas con ping y traceroute","Con la red local sana, verifica que se llegue a otras redes."],
+ ["Capas 4 a 7: puerto con telnet, DNS con nslookup y servicio con curl","Si hay ruta pero un servicio no abre, el problema ya es de puertos o aplicación."]],
+["Recorrido de una trama QinQ",
+ ["El tráfico del cliente llega al borde del ISP con su C-TAG","El cliente maneja sus VLAN como quiere."],
+ ["El borde agrega el S-TAG del servicio","Identifica al cliente o servicio dentro de la red del ISP."],
+ ["La red del ISP conmuta mirando solo el S-TAG","No importa que otro cliente use las mismas VLAN."],
+ ["El borde de destino quita el S-TAG","La etiqueta del proveedor no debe llegar al cliente."],
+ ["El cliente recibe su trama original con el C-TAG intacto","El ISP nunca modificó la etiqueta interna."]],
+["Enlace de fibra sin servicio",
+ ["Revisar los LED: PWR, ALM, NET y USER","Es la lectura más rápida del estado físico."],
+ ["Leer la potencia RX y TX del SFP y anotarla","Define si llega luz y deja el valor para comparar o escalar."],
+ ["Revisar contadores: CRC y errores","Luz baja o un conector sucio se ven como errores."],
+ ["Mirar la tabla MAC de la VLAN de servicio","Deben aparecer la MAC del cliente y la del nodo."],
+ ["Revisar alarmas y log (hora de la caída)","Un aviso RX_LOW previo apunta a un problema de fibra."],
+ ["Escalar con valores concretos, fecha y hora","El N1 revisa y documenta; el cambio lo hace N2 o campo."]],
+["Puerto UTP lento o con errores",
+ ["Ver el estado del puerto y los LED","Confirma que hay enlace y actividad."],
+ ["Comparar velocidad y dúplex en los dos extremos","Un mismatch es la causa más común de «arriba pero lento»."],
+ ["Anotar o limpiar los contadores","Los contadores se acumulan: necesitas un punto de partida."],
+ ["Esperar 1 o 2 minutos con tráfico y volver a mirar","Importa si los errores siguen subiendo, no cuántos hay."],
+ ["Clasificar la falla con la tabla de firmas y escalar con evidencia","CRC con colisiones en 0 apunta a cable o lado full; late collisions, al lado half."]],
+["Reclamo «sale pero no vuelve»",
+ ["Ver qué ruta usa el router para la IP: show ip route <ip>","Es el comando estrella; confirma si hay ruta de ida."],
+ ["Hacer traceroute y ver dónde aparecen * * *","Muestra hasta dónde llega el paquete."],
+ ["Revisar la ruta de regreso en el último router que respondió","La comunicación necesita ida y vuelta."],
+ ["Revisar el puerto y el vecino si la ruta no aparece","Una estática sale de la tabla si su camino no está vivo."],
+ ["Escalar con las salidas y la hora","Cambiar rutas lo autoriza N2 o ingeniería."]],
+["Diagnóstico de un radioenlace",
+ ["Verificar energía y enlace físico (PoE, cable, equipo encendido)","Primero lo físico."],
+ ["Leer el RSSI y compararlo con el de la instalación","Indica cuánta señal llega."],
+ ["Leer SNR/CINR","Pesa más que el RSSI: una señal fuerte con ruido funciona mal."],
+ ["Revisar modulación, retransmisiones y latencia","Muestran el efecto real sobre el cliente."],
+ ["Escalar a campo con capturas de los niveles actuales y de instalación","Para revisar alineación y conectores."]],
+["Enlace de cobre SHDSL caído",
+ ["Leer los LED: PWR, SYNC, ALM y TST","TST encendido indica una prueba o loopback que puede cortar el servicio."],
+ ["Revisar estado de línea: SYNC (Data Mode), margen de SNR y atenuación","Margen mayor a 11 dB y atenuación baja indican una línea sana."],
+ ["Revisar contadores ES, SES y UAS","Muestran si hubo errores o caídas recientes."],
+ ["Revisar alarmas del E1 (LOS, AIS, LOF)","Ubican si la falla es del puerto, anterior o de formato."],
+ ["Registrar los valores y escalar, sin reiniciar ni hacer loopbacks sin autorización","Reiniciar corta el servicio y borra los contadores."]],
+["Abrir una conexión TCP",
+ ["El cliente envía SYN","«Quiero conectarme»."],
+ ["El servidor responde SYN-ACK","«De acuerdo, yo también»."],
+ ["El cliente confirma con ACK","«Listo, empecemos»."],
+ ["Los datos viajan numerados y se confirman con ACK","Así se detecta lo que falta y se reenvía."]],
+["Encapsulamiento al enviar",
+ ["Aplicación: se generan los datos","Es lo que produce el programa."],
+ ["Transporte: se agregan los puertos y se forma el segmento","Identifica a qué programa pertenece."],
+ ["Red: se agregan las IP y se forma el paquete","Permite llegar a otra red."],
+ ["Enlace: se agregan las MAC y el FCS y se forma la trama","Entrega al siguiente equipo y detecta daños."],
+ ["Física: la trama se convierte en bits (señal)","Viaja por cable, fibra o aire."]],
+["OSPF: estados de la adyacencia",
+ ["Init: llega el Hello del vecino, pero aún no me ha escuchado","Comunicación en un solo sentido."],
+ ["2-Way: cada uno ve su Router ID en el Hello del otro","Se escuchan en ambos sentidos."],
+ ["ExStart: acuerdan quién manda el intercambio","Maestro: el de Router ID más alto. Aquí falla un MTU distinto."],
+ ["Exchange: se mandan el resumen de su base de datos (DBD)","Cada uno anota qué LSA le faltan."],
+ ["Loading: piden y reciben los LSA que faltan (LSR, LSU, LSAck)","Se completa el mapa."],
+ ["Full: las bases de datos son idénticas","Ya se calculan rutas con SPF."]],
+["OSPF: sincronización de dos routers",
+ ["Hello: se descubren y verifican los parámetros","Si no coinciden, el Hello se descarta sin error."],
+ ["DBD: se mandan un resumen de su LSDB","Es el índice de la carpeta."],
+ ["LSR: piden los LSA que les faltan","Es pedir las hojas que no tienen."],
+ ["LSU: llegan los LSA completos","Son las hojas."],
+ ["LSAck: confirman que llegaron","Si no llega, el LSU se reenvía cada 5 segundos."]],
+["Revisión de OSPF del N1",
+ ["Ver si el vecino esperado está en Full (show ip ospf neighbor)","Es la primera pregunta: dónde se atasca dice qué buscar."],
+ ["Si falta o se atasca, confirmar que la interfaz está arriba y dentro de OSPF","Una interfaz DOWN es problema de capa 1 o 2, no de OSPF."],
+ ["Comparar los dos extremos: Hello/Dead, área, máscara, autenticación y MTU","Una vecindad tiene dos lados."],
+ ["Con el vecino en Full, buscar la ruta a la loopback destino","Sin la loopback caen BGP y MPLS."],
+ ["Documentar salidas y hora, y escalar a N2","El N1 no cambia costos, referencia ni Router ID."]]
+,
+["OSPF B2: vecino que no llega a Full (radio con QinQ)",
+ ["Ver el estado del vecino en los dos lados (Exchange)","Los Hello pasan pero no sincronizan: sospecha de MTU."],
+ ["Comparar el MTU de las interfaces de los dos routers","Si son distintos, ahí está la causa."],
+ ["Si son iguales, hacer ping de 1500 con bit DF","Prueba lo que hay en medio: radio, convertidor, QinQ."],
+ ["Bajar el tamaño hasta que pase (por ejemplo 1496)","Mide el MTU real del camino."],
+ ["Documentar y escalar a transporte/radio, sin tocar el MTU ni usar mtu-ignore","El N1 revisa y documenta."]],
+["OSPF B3: corte de fibra que deja 40 s sin servicio",
+ ["Revisar el log de la caída del vecino","Dead timer expired sin mensajes de la interfaz: el router no vio el corte."],
+ ["Revisar qué hay en el camino (convertidores en el inventario)","Sin LFP, el puerto del router sigue arriba."],
+ ["Confirmar que el respaldo por radio tomó el tráfico","Los 40 s son lo que OSPF tarda en enterarse."],
+ ["Documentar y recomendar a N2 activar LFP o BFD","Con LFP el corte se ve como Interface down y el cambio es inmediato."]],
+["BGP B1: estados de una sesión (camino normal)",
+ ["Idle","Estado inicial: todavía no intenta conectar."],
+ ["Connect","Intenta abrir el TCP 179."],
+ ["OpenSent","El TCP subió y mandó su Open."],
+ ["OpenConfirm","Aceptó el Open del vecino; espera su Keepalive."],
+ ["Established","Intercambian Updates; en el resumen se ve un número."]],
+["BGP B1: «el hotel no navega tras cambiar su router»",
+ ["Ver la sesión en el PE (display bgp peer)","Idle que se reinicia: el TCP sube pero la sesión cae."],
+ ["Descartar transporte con ping e interfaz","Si responden, no es la última milla."],
+ ["Leer el log (Notification)","Bad peer AS, received: el CPE nos rechaza."],
+ ["Comparar el AS con la orden de servicio","El CPE nuevo tiene mal el AS del ISP."],
+ ["Escalar al área que coordina con el cliente","El N1 no toca el PE."]],
+["BGP B2: orden de selección de la mejor ruta",
+ ["Next-hop alcanzable","Si no lo es, la ruta ni compite."],
+ ["Weight / PrefVal (el más alto)","Valor local del router."],
+ ["Local Preference (el más alto)","Política de salida del ISP."],
+ ["AS_Path (el más corto)","Menos AS en el camino."],
+ ["Origin (i, luego e, luego ?)","Cómo nació la ruta."],
+ ["MED (el más bajo, mismo AS vecino)","Sugerencia del vecino."],
+ ["eBGP antes que iBGP","Prefiere lo aprendido directo de otro AS."],
+ ["Costo IGP más bajo hasta el next-hop","Desempate por OSPF."]],
+["BGP B3: verificar la entrega de una sesión a un cliente",
+ ["Interfaz y VLAN del PE arriba y sin errores","Primero lo físico."],
+ ["Ping al router del cliente (con origen o VRF)","Si no responde, no se mira BGP."],
+ ["Sesión Established y estable","Up/Down que no se reinicia."],
+ ["Rutas recibidas: solo los prefijos de la orden","received-routes y routes."],
+ ["Rutas anunciadas: lo de la orden (ruta por defecto)","advertised-routes."],
+ ["Ruta instalada en la tabla (global o VRF)","El último paso."]],
+["BGP RR B1: dibujar la topología de RR de un nodo",
+ ["En un PE: resumen BGP y ver con qué loopbacks tiene iBGP","Esos son sus RR."],
+ ["En cada RR: resumen BGP, cuántos vecinos y en qué estado","Un RR atiende muchos vecinos iBGP."],
+ ["En el RR: display bgp group para ver los reflect-client","Confirma quiénes son clientes."],
+ ["En el PE: detalle de una ruta (Originator, Cluster list)","Debe llegar por los dos RR."],
+ ["Dibujar: RR arriba, clientes abajo, una línea por sesión","Con el estado de cada sesión."]],
+["BGP RR B2: trazar el prefijo del hotel hasta Internet",
+ ["PE-SUR-01: recibido del hotel por eBGP, *>","El origen."],
+ ["RR-CEN-01: recibido de PE-SUR-01, best, next-hop 10.255.0.21","El RR lo refleja."],
+ ["BR-CEN-01: internal, best, Originator 10.255.0.21, Cluster list 10.255.0.101","Llegó al borde."],
+ ["Hacia Tránsito A sale 203.0.113.0/24","El bloque completo incluye al hotel."]],
+["Filtros: cómo recorre una ruta una route-map",
+ ["Prueba la cláusula de número más bajo (10)","Se leen en orden."],
+ ["Si coincide el match, aplica permit (con sus set) o deny y termina","First match."],
+ ["Si no coincide, pasa a la siguiente cláusula (20, 30…)","Sigue buscando."],
+ ["Si no coincidió con ninguna, la bloquea el deny implícito","Por eso se termina con un permit vacío si se quiere dejar pasar el resto."]],
+["Filtros: diagnóstico de una ruta que no aparece",
+ ["Confirmar que la sesión está Established","Un filtro puede actuar con la sesión perfecta."],
+ ["Ver received-routes: ¿llegó la ruta?","Si no llegó, el problema está en el vecino."],
+ ["Ver si tiene * (aceptada)","Llegó y no se aceptó = filtro de entrada."],
+ ["Ver qué filtro tiene el vecino (peer verbose)","Nombre de la ip-prefix o route-policy."],
+ ["Leer la prefix-list y sus contadores","Rango ge/le, orden y deny implícito."],
+ ["Escalar con las salidas y la hora; mencionar el refresco suave","El N1 no cambia filtros."]]
+];
+
+/* ---------- Estado y almacenamiento ---------- */
+const KEY="repaso-cnoc-n1-v1";
+let mem=null;
+function load(){ try{ const r=localStorage.getItem(KEY); if(r) return JSON.parse(r); }catch(e){} return mem; }
+function save(){ mem=JSON.parse(JSON.stringify(P)); try{ localStorage.setItem(KEY,JSON.stringify(P)); }catch(e){} }
+let P = load() || {};
+P.c = P.c || {}; P.o = P.o || {}; P.st = Object.assign({ans:0,ok:0,streak:0,best:0},P.st||{});
+const S = {view:"home", topic:"all", confirm:false};
+
+/* ---------- Utilidades ---------- */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = s=>esc(s).replace(/`([^`]+)`/g,"<code>$1</code>");
+const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const cp = id => P.c[id] || (P.c[id]={b:0,n:0,w:0});
+const mastered = c => { const p=P.c[c.id]; return !!p && p.n>0 && p.b>=3; };
+function pick(pool,n){
+  return pool.map(c=>{const p=P.c[c.id]; const s=(!p||p.n===0)?1:p.b; return {c,s:s+Math.random()*1.6};})
+             .sort((a,b)=>a.s-b.s).slice(0,n).map(x=>x.c);
+}
+function grade(id,ok){
+  const p=cp(id); p.n++;
+  if(ok){ p.b=Math.min(4,p.b+1); P.st.ok++; P.st.streak++; P.st.best=Math.max(P.st.best,P.st.streak); }
+  else { p.b=0; p.w++; P.st.streak=0; }
+  P.st.ans++; save();
+}
+function rate(id,level){
+  const p=cp(id); p.n++;
+  if(level==="hard"){ p.b=0; }
+  else if(level==="mid"){ p.b=Math.min(Math.max(p.b,1),2); }
+  else { p.b=Math.min(4,p.b+2); }
+  save();
+}
+const strip=(items,cur,res)=>`<div class="strip" aria-hidden="true">${items.map((_,i)=>`<i class="${res[i]===1?"ok":res[i]===0?"bad":""}${i===cur?" cur":""}"></i>`).join("")}</div>`;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- Vistas ---------- */
+function home(){
+  const total=CARDS.length, done=CARDS.filter(mastered).length;
+  const acc = P.st.ans? Math.round(100*P.st.ok/P.st.ans):0;
+  const pool = CARDS.filter(c=>S.topic==="all"||c.t===S.topic);
+  const fails = CARDS.filter(c=>{const p=P.c[c.id];return p&&p.w>0&&p.b<3});
+  const topics = Object.keys(TOPICS).map(k=>{
+    const cs=CARDS.filter(c=>c.t===k); const m=cs.filter(mastered).length;
+    const seen=cs.filter(c=>(P.c[c.id]||{}).n>0).length;
+    return {k,name:TOPICS[k],m,seen,tot:cs.length};
+  });
+  return `
+  <header class="brand"><div class="leds" aria-hidden="true"><i></i><i></i><i></i></div><h1>Repaso CNOC N1</h1></header>
+  <p class="sub">${total} preguntas en ${topics.length} temas. Lo que fallas vuelve antes; lo que dominas, más tarde.</p>
+  <div class="stats">
+    <div class="stat"><b>${done}/${total}</b><span>Dominadas</span></div>
+    <div class="stat"><b>${acc}%</b><span>Aciertos</span></div>
+    <div class="stat"><b>${P.st.best}</b><span>Mejor racha</span></div>
+  </div>
+  <section class="panel" aria-label="Tema">
+    <span class="label">Tema para quiz y tarjetas</span>
+    <div class="chips">
+      <button class="chip" data-act="topic" data-v="all" aria-pressed="${S.topic==="all"}">Todos</button>
+      ${topics.map(t=>`<button class="chip" data-act="topic" data-v="${t.k}" aria-pressed="${S.topic===t.k}">${esc(t.name)}</button>`).join("")}
+    </div>
+  </section>
+  <div class="modes">
+    <button class="mode primary" data-act="quiz"><strong>Quiz</strong><span>10 preguntas de opción múltiple</span></button>
+    <button class="mode" data-act="flash"><strong>Tarjetas</strong><span>Piensa la respuesta y califica qué tan fácil fue</span></button>
+    <button class="mode" data-act="order"><strong>Ordenar pasos</strong><span>Procedimientos con su porqué</span></button>
+    <button class="mode" data-act="fails" ${fails.length?"":"disabled"}><strong>Mis fallos</strong><span>${fails.length?fails.length+" por repasar":"Aún no tienes fallos"}</span></button>
+    <a class="mode" href="index.html" style="grid-column:1/-1;text-decoration:none;color:inherit"><strong>Consola de comandos</strong><span>Practica comandos Huawei, Cisco y FortiGate y resuelve casos de diagnóstico</span></a>
+  </div>
+  <section class="panel" aria-label="Dominio por tema">
+    <span class="label">Dominio por tema</span>
+    <div class="mast">
+      ${topics.map(t=>`<div class="mrow"><span class="nm">${esc(t.name)}</span><span class="ct">${t.m}/${t.tot}</span>
+        <div class="bar" role="img" aria-label="${t.m} dominadas, ${t.seen-t.m>0?t.seen-t.m:0} en práctica de ${t.tot}"><i class="m" style="width:${100*t.m/t.tot}%"></i><i class="s" style="width:${100*Math.max(0,t.seen-t.m)/t.tot}%"></i></div></div>`).join("")}
+    </div>
+    <span class="hint">Verde: dominadas (acertadas 3 veces seguidas). Ámbar: en práctica.</span>
+  </section>
+  <button class="link reset" data-act="reset">${S.confirm?"Toca otra vez para borrar todo el progreso":"Borrar progreso"}</button>`;
+}
+
+function quizView(){
+  const q=S.q, it=q.items[q.i], c=it.c, ans=it.pick!==null;
+  const ok = ans && it.opts[it.pick]===c.c;
+  const res=q.items.map(x=>x.pick===null?null:(x.opts[x.pick]===x.c.c?1:0));
+  return `
+  <div class="top"><button class="link" data-act="home">Salir</button>${strip(q.items,q.i,res)}<span class="label">${q.i+1}/${q.items.length}</span></div>
+  <section class="panel">
+    <p class="tag">${esc(TOPICS[c.t])}</p>
+    <p class="q">${fmt(c.q)}</p>
+    <div class="opts">${it.opts.map((o,i)=>{
+      let cls="opt"; if(ans){ if(o===c.c) cls+=" ok"; else if(i===it.pick) cls+=" bad"; else cls+=" dim"; }
+      return `<button class="${cls}" data-act="pick" data-i="${i}" ${ans?'aria-disabled="true"':""}><span class="port"></span><span>${fmt(o)}</span></button>`;}).join("")}
+    </div>
+    ${ans?`<div class="fb ${ok?"ok":"bad"}" id="fb"><b>${ok?"Correcto":"Incorrecto"}</b>${ok?"":`<p>Respuesta: ${fmt(c.c)}</p>`}<p>${fmt(c.e)}</p></div>
+    <button class="btn primary" data-act="next">${q.i+1<q.items.length?"Siguiente":"Ver resultado"}</button>`:""}
+  </section>`;
+}
+
+function flashView(){
+  const f=S.f, c=f.items[f.i];
+  return `
+  <div class="top"><button class="link" data-act="home">Salir</button>${strip(f.items,f.i,f.items.map(()=>null))}<span class="label">${f.i+1}/${f.items.length}</span></div>
+  <p class="tag">${esc(TOPICS[c.t])}</p>
+  ${f.flip?`<button class="card back" data-act="flip"><span class="label">Respuesta</span><p class="ans">${fmt(c.c)}</p><p class="exp">${fmt(c.e)}</p></button>
+  <div class="rate">
+    <button class="btn" data-act="rate" data-v="hard">Difícil<small>vuelve pronto</small></button>
+    <button class="btn" data-act="rate" data-v="mid">Medio<small>más adelante</small></button>
+    <button class="btn" data-act="rate" data-v="easy">Fácil<small>mucho después</small></button>
+  </div>`:`<button class="card" data-act="flip"><span class="label">Pregunta</span><p class="q">${fmt(c.q)}</p><span class="hint">Piensa tu respuesta y toca para ver la correcta</span></button>`}`;
+}
+
+function sumView(){
+  const s=S.sum, pct=Math.round(100*s.ok/s.total);
+  const msg = pct>=90?"Muy bien.":pct>=70?"Aprobado. Repasa lo que fallaste.":"Vuelve a pasar por lo que fallaste y repite.";
+  return `
+  <div class="top"><button class="link" data-act="home">Inicio</button><span class="label">${esc(s.name)}</span></div>
+  <section class="panel">
+    <p class="score">${s.ok}/${s.total}</p>
+    <p class="sub">${esc(msg)}</p>
+    ${strip(s.res,-1,s.res)}
+    ${s.missed.length?`<span class="label">Para repasar</span><ul class="missed">${s.missed.map(c=>`<li><b>${fmt(c.q)}</b>${fmt(c.c)}<span class="why">${fmt(c.e)}</span></li>`).join("")}</ul>`:""}
+    <div class="row">
+      <button class="btn primary" data-act="again">Otra ronda</button>
+      ${s.missed.length?`<button class="btn" data-act="fails">Repasar fallos</button>`:""}
+    </div>
+  </section>`;
+}
+
+function orderView(){
+  const o=S.o, z=PUZ[o.p], steps=z.slice(1), n=steps.length;
+  const placed=o.chosen.map(i=>({i,s:steps[i]}));
+  const pool=o.shuf.filter(i=>!o.chosen.includes(i));
+  let body;
+  if(o.checked){
+    const hits=o.chosen.filter((v,pos)=>v===pos).length;
+    body=`<div class="fb ${hits===n?"ok":"bad"}"><b>${hits===n?"Orden correcto":hits+" de "+n+" en su lugar"}</b><p>${hits===n?"Revisa el porqué de cada paso.":"Mira el orden correcto y por qué va cada paso."}</p></div>
+    <span class="label">Tu orden</span>
+    <ol class="chosen">${placed.map((x,pos)=>`<li><div class="step ${x.i===pos?"ok":"bad"}"><span class="n">${pos+1}</span><span>${fmt(x.s[0])}</span></div></li>`).join("")}</ol>
+    <span class="label">Orden correcto y por qué</span>
+    <ol class="chosen">${steps.map((s,i)=>`<li><div class="step"><span class="n">${i+1}</span><span>${fmt(s[0])}<span class="why">${fmt(s[1])}</span></span></div></li>`).join("")}</ol>
+    <div class="row"><button class="btn primary" data-act="order">Otro procedimiento</button><button class="btn" data-act="retry">Repetir este</button></div>`;
+  } else {
+    body=`<span class="label">Tu orden (toca un paso para quitarlo)</span>
+    ${placed.length?`<ol class="chosen">${placed.map((x,pos)=>`<li><button class="step" data-act="unplace" data-i="${x.i}"><span class="n">${pos+1}</span><span>${fmt(x.s[0])}</span></button></li>`).join("")}</ol>`:`<div class="empty">Toca los pasos de abajo en el orden en que los harías.</div>`}
+    <span class="label">Pasos disponibles</span>
+    ${pool.length?`<ul class="pool">${pool.map(i=>`<li><button class="step" data-act="place" data-i="${i}"><span class="n">+</span><span>${fmt(steps[i][0])}</span></button></li>`).join("")}</ul>`:`<div class="empty">Ya colocaste todos los pasos.</div>`}
+    <div class="row"><button class="btn primary" data-act="check" ${placed.length===n?"":"disabled"}>Comprobar</button><button class="btn" data-act="clear" ${placed.length?"":"disabled"}>Reiniciar</button></div>`;
+  }
+  return `<div class="top"><button class="link" data-act="home">Salir</button><span class="label">Ordenar pasos</span></div>
+  <section class="panel"><h2>${fmt(z[0])}</h2>${body}</section>`;
+}
+
+/* ---------- Sesiones ---------- */
+function startQuiz(kind){
+  let pool = CARDS.filter(c=>S.topic==="all"||c.t===S.topic);
+  if(kind==="fails") pool = CARDS.filter(c=>{const p=P.c[c.id];return p&&p.w>0&&p.b<3});
+  if(!pool.length) return;
+  S.kind=kind;
+  const items=pick(pool,10).map(c=>({c,opts:shuffle([c.c,...c.w]),pick:null}));
+  S.q={items,i:0}; S.view="quiz"; go();
+}
+function startFlash(){
+  const pool = CARDS.filter(c=>S.topic==="all"||c.t===S.topic);
+  S.kind="flash"; S.f={items:pick(pool,10),i:0,flip:false,rated:[]}; S.view="flash"; go();
+}
+function startOrder(p){
+  if(p===undefined){
+    const order=PUZ.map((_,i)=>({i,s:((P.o[i]||{}).ok||0)+Math.random()})).sort((a,b)=>a.s-b.s);
+    p=order[0].i;
+    if(S.o && S.o.p===p && PUZ.length>1) p=order[1].i;
+  }
+  const n=PUZ[p].length-1; let sh=shuffle([...Array(n).keys()]);
+  if(n>1 && sh.every((v,i)=>v===i)) sh=sh.reverse();
+  S.o={p,shuf:sh,chosen:[],checked:false}; S.view="order"; go();
+}
+function finish(items,name){
+  const res=items.map(x=>x.opts[x.pick]===x.c.c?1:0);
+  S.sum={name,total:items.length,ok:res.filter(Boolean).length,res,missed:items.filter((x,i)=>!res[i]).map(x=>x.c)};
+  S.view="sum"; go();
+}
+
+/* ---------- Render ---------- */
+function go(){ render(); window.scrollTo(0,0); }
+function render(){
+  const v=S.view;
+  $("#app").innerHTML = v==="home"?home(): v==="quiz"?quizView(): v==="flash"?flashView(): v==="sum"?sumView(): orderView();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
+  const a=b.dataset.act, i=b.dataset.i!==undefined?+b.dataset.i:null;
+  switch(a){
+    case "home": S.view="home"; S.confirm=false; go(); break;
+    case "topic": S.topic=b.dataset.v; render(); break;
+    case "quiz": startQuiz("quiz"); break;
+    case "fails": startQuiz("fails"); break;
+    case "flash": startFlash(); break;
+    case "order": startOrder(); break;
+    case "again": S.kind==="flash"?startFlash():S.kind==="fails"?startQuiz("fails"):startQuiz("quiz"); break;
+    case "pick": { const it=S.q.items[S.q.i]; if(it.pick!==null) break; it.pick=i; grade(it.c.id,it.opts[i]===it.c.c); render();
+      const fb=$("#fb"); if(fb) fb.scrollIntoView({block:"nearest",behavior:reduce?"auto":"smooth"}); break; }
+    case "next": if(S.q.i+1<S.q.items.length){ S.q.i++; go(); } else finish(S.q.items, S.kind==="fails"?"Mis fallos":"Quiz"); break;
+    case "flip": S.f.flip=!S.f.flip; render(); break;
+    case "rate": { const f=S.f, c=f.items[f.i]; rate(c.id,b.dataset.v); f.rated.push(b.dataset.v);
+      if(f.i+1<f.items.length){ f.i++; f.flip=false; go(); }
+      else { const hard=f.items.filter((_,k)=>f.rated[k]==="hard"); const easy=f.rated.filter(x=>x==="easy").length;
+        S.sum={name:"Tarjetas",total:f.items.length,ok:easy,res:f.rated.map(x=>x==="easy"?1:x==="hard"?0:null),missed:hard};
+        S.view="sum"; go(); }
+      break; }
+    case "place": S.o.chosen.push(i); render(); break;
+    case "unplace": S.o.chosen=S.o.chosen.filter(x=>x!==i); render(); break;
+    case "clear": S.o.chosen=[]; render(); break;
+    case "check": { S.o.checked=true; const n=PUZ[S.o.p].length-1; const okAll=S.o.chosen.every((v,k)=>v===k);
+      const r=P.o[S.o.p]||(P.o[S.o.p]={n:0,ok:0}); r.n++; if(okAll) r.ok++; save(); render(); window.scrollTo(0,0); break; }
+    case "retry": startOrder(S.o.p); break;
+    case "reset": if(S.confirm){ P={c:{},o:{},st:{ans:0,ok:0,streak:0,best:0}}; save(); S.confirm=false; } else S.confirm=true; render(); break;
+  }
+});
+render();
+</script>
+
+</body>
+</html>
