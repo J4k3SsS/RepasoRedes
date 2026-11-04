@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio CLI CNOC</title>
+<meta name="description" content="Consola simulada Huawei, Cisco y FortiGate para practicar diagnóstico de N1 con escenarios ficticios.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface2:#F3F6F4; --fg:#13211C; --muted:#586861; --line:#CBD6D1;
+  --accent:#0B7A63; --accent-fg:#FFFFFF; --ok:#17884A; --okbg:#E2F4E9; --bad:#C23B2E; --badbg:#FBE7E4; --warn:#A86A0B;
+  --term:#0C1210; --termfg:#D7E4DD; --termmuted:#7F948A; --termok:#55E0A6; --termbad:#FF8A7D; --termwarn:#F2C266; --termcmd:#FFFFFF;
+  --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --surface:#16201B; --surface2:#1C2822; --fg:#E3EDE8; --muted:#93A49C; --line:#2B3A33;
+    --accent:#3FD6A0; --accent-fg:#08110D; --ok:#3FD6A0; --okbg:#123226; --bad:#FF7366; --badbg:#3A1A17; --warn:#E8B04B;
+    --term:#070B09; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#16201B; --surface2:#1C2822; --fg:#E3EDE8; --muted:#93A49C; --line:#2B3A33;
+  --accent:#3FD6A0; --accent-fg:#08110D; --ok:#3FD6A0; --okbg:#123226; --bad:#FF7366; --badbg:#3A1A17; --warn:#E8B04B;
+  --term:#070B09; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+.app{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:16px;min-width:0}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface2);border:1px solid var(--line);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+h1{font-family:var(--display);font-weight:700;font-size:38px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0}
+h2{font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:.03em;text-transform:uppercase;margin:0;line-height:1.1}
+.sub{color:var(--muted);margin:0;font-size:15px}
+.label{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.brand{display:flex;align-items:center;gap:12px}
+.leds{display:flex;gap:5px}.leds i{width:10px;height:10px;border-radius:2px;background:var(--ok)}
+.leds i:nth-child(2){background:var(--warn)}.leds i:nth-child(3){background:var(--bad)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.sc{display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;min-width:0}
+.sc .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.sc strong{font-size:16px;line-height:1.3}
+.sc .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pill{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.link{background:none;border:0;padding:6px 0;color:var(--muted);cursor:pointer;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.ticket{border-left:3px solid var(--accent);padding:2px 0 2px 12px;display:flex;flex-direction:column;gap:6px}
+.ticket p{margin:0;font-size:15.5px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.tab small{font-family:var(--body);font-size:11px;color:var(--muted)}
+.tab[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.tab[aria-pressed="true"] small{color:inherit;opacity:.75}
+.term{background:var(--term);color:var(--termfg);border-radius:10px;border:1px solid var(--line);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.out{font-family:var(--mono);font-size:12.5px;line-height:1.5;height:52vh;min-height:300px;overflow:auto;padding:12px 12px 4px;white-space:pre;-webkit-overflow-scrolling:touch}
+.out .cmd{color:var(--termcmd)}.out .lab{color:var(--termwarn);white-space:pre-wrap}.out .err{color:var(--termbad)}
+.out .ban{color:var(--termok)}.out .hint{color:var(--termwarn);white-space:pre-wrap}.out .dim{color:var(--termmuted);white-space:pre-wrap}
+.out .info{color:#8FD3FF;white-space:pre-wrap;border-left:2px solid #2F5F78;padding-left:8px;margin:4px 0 8px}
+.sc.free{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}.sc.free .n{color:inherit;opacity:.8}
+.inrow{display:flex;align-items:center;gap:8px;border-top:1px solid #22302A;padding:8px 10px}
+.prompt{font-family:var(--mono);font-size:13px;color:var(--termok);flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inrow input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--termcmd);font-family:var(--mono);font-size:16px;padding:6px 0}
+.send{flex:none;background:var(--termok);color:#08110D;border:0;border-radius:6px;padding:7px 12px;font-weight:600;cursor:pointer}
+.keys{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 10px}
+.key{background:#17221D;color:var(--termfg);border:1px solid #2A3A33;border-radius:6px;padding:7px 11px;font-family:var(--mono);font-size:13px;cursor:pointer;min-width:42px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:13px 16px;font-weight:600;cursor:pointer;text-align:center;min-height:48px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row .btn{flex:1;min-width:140px}
+.q{font-size:18px;font-weight:500;margin:0}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:15.5px;line-height:1.35;cursor:pointer}
+.opt .port{flex:none;width:10px;height:10px;margin-top:6px;border-radius:2px;background:var(--line)}
+.opt.ok{border-color:var(--ok);background:var(--okbg)}.opt.ok .port{background:var(--ok)}
+.opt.bad{border-color:var(--bad);background:var(--badbg)}.opt.bad .port{background:var(--bad)}
+.opt.dim{opacity:.6}.opt[aria-disabled="true"]{cursor:default}
+.fb{border-radius:8px;padding:14px;border:1px solid var(--line);background:var(--surface2);display:flex;flex-direction:column;gap:8px}
+.fb.ok{border-color:var(--ok);background:var(--okbg)}.fb.bad{border-color:var(--bad);background:var(--badbg)}
+.fb b.t{font-family:var(--display);font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+.fb p{margin:0;font-size:15px}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.checks li{display:flex;gap:8px;align-items:flex-start}
+.checks .mk{flex:none;font-family:var(--mono);font-weight:500;width:18px}
+.checks .y{color:var(--ok)}.checks .n2{color:var(--bad)}
+.foot{color:var(--muted);font-size:13px}
+@media (max-width:420px){.out{font-size:11.5px;height:50vh}h1{font-size:32px}}
+</style>
+</head>
+<body>
+<main class="app" id="app"></main>
+<script>
+/* =================== Utilidades de salida =================== */
+const ciNbr = rows => "\nNeighbor ID     Pri   State           Dead Time   Address         Interface\n" + rows.join("\n");
+const hwPeer = (rid, rows) => "\n         OSPF Process 1 with Router ID " + rid + "\n                  Peer Statistic Information\n ----------------------------------------------------------------------------\n Area Id          Interface                        Neighbor id      State\n" + rows.map(r=>" "+r).join("\n") + (rows.length?"\n":"") + " ----------------------------------------------------------------------------";
+const hwRT = (title, rows) => "Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nRouting Table : " + title + "\n         Destinations : " + rows.length + "        Routes : " + rows.length + "\n\nDestination/Mask    Proto   Pre  Cost      Flags NextHop         Interface\n\n" + rows.join("\n");
+const hwIfBriefHead = "PHY: Physical\n*down: administratively down\n(l): loopback\n(s): spoofing\nInUti/OutUti: input utility/output utility\nInterface                   PHY   Protocol  InUti OutUti   inErrors  outErrors\n";
+const hwOspfIf = (rid, ip, ifn, cost, mtu, hello, dead) => "\n          OSPF Process 1 with Router ID " + rid + "\n                  Interfaces\n\n Interface: " + ip + " (" + ifn + ")\n Cost: " + cost + "       State: P-2-P      Type: P2P       MTU: " + mtu + "\n Timers: Hello " + hello + " , Dead " + dead + " , Poll  120 , Retransmit 5 , Transmit Delay 1";
+const hwOspfBrief = rid => "\n         OSPF Process 1 with Router ID " + rid + "\n                 OSPF Protocol Information\n\n RouterID: " + rid + "         Border Router:\n Multi-VPN-Instance is not enabled\n Spf-schedule-interval: max 10000ms, start 500ms, hold 1000ms\n Default ASE parameters: Metric: 1 Tag: 1 Type: 2\n Route Preference: 10\n ASE Route Preference: 150\n Bandwidth-reference: 100000 (Mbps)\n Area Count: 1   Nssa Area Count: 0\n\n Area: 0.0.0.0          (MPLS TE not enabled)\n Authtype: None   Area flag: Normal";
+const ciOspf = ref => " Routing Process \"ospf 1\" with ID 10.255.0.1\n Start time: 00:00:41.112, Time elapsed: 3d04h\n Supports only single TOS(TOS0) routes\n Router is not originating router-LSAs with maximum metric\n Initial SPF schedule delay 50 msecs\n Number of areas in this router is 1. 1 normal 0 stub 0 nssa\n Reference bandwidth unit is " + ref + " mbps\n    Area BACKBONE(0)\n        Number of interfaces in this area is 4 (1 loopback)\n        Area has no authentication\n        SPF algorithm executed 14 times";
+const ciIf = (name, desc, ip, mtu, extra) => name + " is up, line protocol is up\n  Hardware is BUILT-IN-2T+20X1GE, address is 00aa.bb01.0002 (bia 00aa.bb01.0002)\n  Description: " + desc + "\n  Internet address is " + ip + "\n  MTU " + mtu + " bytes, BW 10000000 Kbit/sec, DLY 10 usec,\n     reliability 255/255, txload 1/255, rxload 1/255\n  Encapsulation ARPA, loopback not set\n  Full Duplex, 10000Mbps, link type is force-up, media type is SFP-10GBase-LR\n  Last input 00:00:00, output 00:00:00, output hang never\n  5 minute input rate 12000 bits/sec, 15 packets/sec\n  5 minute output rate 14000 bits/sec, 16 packets/sec\n     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored\n     0 output errors, 0 collisions, " + (extra||"0") + " interface resets";
+const ciIpBrief = "Interface              IP-Address      OK? Method Status                Protocol\nTenGigabitEthernet0/0/1 10.0.0.0       YES NVRAM  up                    up\nTenGigabitEthernet0/0/2 10.0.0.2       YES NVRAM  up                    up\nTenGigabitEthernet0/0/3 10.0.0.6       YES NVRAM  up                    up\nLoopback0              10.255.0.1      YES NVRAM  up                    up";
+const ciOspfIf = (name, ip, nb, adj) => name + " is up, line protocol is up\n  Internet Address " + ip + ", Area 0, Attached via Network Statement\n  Process ID 1, Router ID 10.255.0.1, Network Type POINT_TO_POINT, Cost: 10\n  Transmit Delay is 1 sec, State POINT_TO_POINT\n  Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5\n    Hello due in 00:00:04\n  Neighbor Count is " + nb + ", Adjacent neighbor count is " + adj + "\n  Suppress hello for 0 neighbor(s)";
+const ciRunIf = (name, desc, ip) => "Building configuration...\n\nCurrent configuration : 188 bytes\n!\ninterface " + name + "\n description " + desc + "\n ip address " + ip + " 255.255.255.254\n ip ospf network point-to-point\n ip ospf cost 10\nend";
+
+const ciPcenRun = "Building configuration...\n\nCurrent configuration : 1412 bytes\n!\nhostname P-CEN-01\n!\ninterface Loopback0\n ip address 10.255.0.1 255.255.255.255\n!\ninterface TenGigabitEthernet0/0/1\n description CORE-A-PE-NOR-01-XGE0/0/1\n ip address 10.0.0.0 255.255.255.254\n ip ospf network point-to-point\n ip ospf cost 10\n!\ninterface TenGigabitEthernet0/0/2\n description CORE-A-PE-SUR-01-XGE0/0/1\n ip address 10.0.0.2 255.255.255.254\n ip ospf network point-to-point\n ip ospf cost 10\n!\ninterface TenGigabitEthernet0/0/3\n description CORE-A-FW-CEN-01-x1\n ip address 10.0.0.6 255.255.255.254\n ip ospf network point-to-point\n ip ospf cost 10\n!\nrouter ospf 1\n router-id 10.255.0.1\n auto-cost reference-bandwidth 100000\n network 10.255.0.1 0.0.0.0 area 0\n network 10.0.0.0 0.0.0.255 area 0\n!\nend";
+const hwRun = (name, rid, ifs, nets) => "!Software Version V800R021C10SPC100\n#\n sysname " + name + "\n#\n" + ifs.map(b=>b+"\n#\n").join("") + "interface LoopBack0\n ip address " + rid + " 255.255.255.255\n#\nospf 1 router-id " + rid + "\n bandwidth-reference 100000\n area 0.0.0.0\n  network " + rid + " 0.0.0.0\n" + nets.map(n=>"  network "+n+"\n").join("") + "#\nreturn";
+
+/* =================== Escenarios (todo ficticio) =================== */
+const SC = [
+{
+ id:"ospf-mtu", title:"OSPF: PE-SUR-01 no llega a Full", level:"OSPF",
+ ticket:"Alarma de monitoreo: las sesiones BGP hacia PE-SUR-01 se cayeron. El enlace de fibra entre P-CEN-01 y PE-SUR-01 está arriba. Hoy se hizo un cambio programado en PE-SUR-01.",
+ goal:"Revisa la vecindad OSPF en los dos extremos y encuentra por qué no se completa.",
+ devices:[
+  {name:"P-CEN-01", os:"cisco", role:"P · Cisco IOS-XE", vrfs:[],
+   pings:[{ip:"10.0.0.3",mtu:1500},{ip:"10.0.0.1",mtu:1500},{ip:"10.0.0.7",mtu:1500},{ip:"10.255.0.11",mtu:1500},{ip:"10.255.0.31",mtu:1500}],
+   cmds:[
+    {c:["show running-config"], o:ciPcenRun},
+    {c:["show ip ospf neighbor"], o:ciNbr(["10.255.0.11       0   FULL/  -        00:00:36    10.0.0.1        TenGigabitEthernet0/0/1","10.255.0.12       0   EXSTART/  -     00:00:37    10.0.0.3        TenGigabitEthernet0/0/2","10.255.0.31       0   FULL/  -        00:00:38    10.0.0.7        TenGigabitEthernet0/0/3"])},
+    {c:["show ip ospf interface brief"], o:"Interface    PID   Area            IP Address/Mask    Cost  State Nbrs F/C\nLo0          1     0               10.255.0.1/32      1     LOOP  0/0\nTe0/0/1      1     0               10.0.0.0/31        10    P2P   1/1\nTe0/0/2      1     0               10.0.0.2/31        10    P2P   0/1\nTe0/0/3      1     0               10.0.0.6/31        10    P2P   1/1"},
+    {c:["show ip ospf interface TenGigabitEthernet0/0/2"], o:ciOspfIf("TenGigabitEthernet0/0/2","10.0.0.2/31",1,0)},
+    {c:["show interfaces TenGigabitEthernet0/0/2"], o:ciIf("TenGigabitEthernet0/0/2","CORE-A-PE-SUR-01-XGE0/0/1","10.0.0.2/31",1500)},
+    {c:["show interfaces TenGigabitEthernet0/0/1"], o:ciIf("TenGigabitEthernet0/0/1","CORE-A-PE-NOR-01-XGE0/0/1","10.0.0.0/31",1500)},
+    {c:["show ip interface brief"], o:ciIpBrief},
+    {c:["show ip route ospf"], o:"      10.0.0.0/8 is variably subnetted, 8 subnets, 2 masks\nO        10.255.0.11/32 [110/10] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nO        10.255.0.31/32 [110/10] via 10.0.0.7, 3d04h, TenGigabitEthernet0/0/3"},
+    {c:["show ip route 10.255.0.12"], o:"% Subnet not in table"},
+    {c:["show ip ospf"], o:ciOspf(100000)},
+    {c:["show running-config interface TenGigabitEthernet0/0/2"], o:ciRunIf("TenGigabitEthernet0/0/2","CORE-A-PE-SUR-01-XGE0/0/1","10.0.0.2")},
+    {c:["show logging"], o:"Log Buffer (65536 bytes):\n*Oct 30 14:01:21: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from FULL to DOWN, Neighbor Down: Interface down or detached\n*Oct 30 14:01:24: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from DOWN to INIT, Received Hello\n*Oct 30 14:01:24: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from INIT to 2WAY, 2-Way Received\n*Oct 30 14:01:24: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from 2WAY to EXSTART, AdjOK?\n*Oct 30 14:03:11: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from EXSTART to DOWN, Neighbor Down: Too many retransmissions\n*Oct 30 14:03:14: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.12 on TenGigabitEthernet0/0/2 from 2WAY to EXSTART, AdjOK?"}
+   ]},
+  {name:"PE-SUR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"10.0.0.2",mtu:1500}],
+   cmds:[
+    {c:["display current-configuration"], o:hwRun("PE-SUR-01","10.255.0.12",["interface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/2\n mtu 1600\n ip address 10.0.0.3 255.255.255.254\n ospf network-type p2p\n ospf cost 10","interface GigabitEthernet0/0/3\n description CLIENTE-0403-FIBRA\n ip address 100.64.30.1 255.255.255.252"],["10.0.0.2 0.0.0.1"])},
+    {c:["display ospf peer brief"], o:hwPeer("10.255.0.12",["0.0.0.0          XGigabitEthernet0/0/1            10.255.0.1       ExStart"])},
+    {c:["display ospf interface XGigabitEthernet0/0/1"], o:hwOspfIf("10.255.0.12","10.0.0.3","XGigabitEthernet0/0/1",10,1600,10,40)},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/2        up    up        12%    9%            0          0\nGigabitEthernet0/0/3        up    up        4%     2%            0          0\nLoopBack0                   up    up(s)     0%     0%            0          0\nNULL0                       up    up(s)     0%     0%            0          0\nXGigabitEthernet0/0/1       up    up        0.01%  0.01%         0          0"},
+    {c:["display interface XGigabitEthernet0/0/1"], o:"XGigabitEthernet0/0/1 current state : UP\nLine protocol current state : UP\nLast line protocol up time : 2026-10-30 14:01:24\nDescription:CORE-A-P-CEN-01-Te0/0/2\nRoute Port,The Maximum Transmit Unit is 1600\nInternet Address is 10.0.0.3/31\nIP Sending Frames' Format is PKTFMT_ETHNT_2, Hardware address is 00e0-fc12-0001\nPort Mode: COMMON FIBER\nSpeed : 10000,  Loopback: NONE\nDuplex: FULL,   Negotiation: DISABLE\nLast 300 seconds input rate 9840 bits/sec, 12 packets/sec\nLast 300 seconds output rate 11200 bits/sec, 13 packets/sec\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display current-configuration interface XGigabitEthernet0/0/1"], o:"#\ninterface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/2\n mtu 1600\n ip address 10.0.0.3 255.255.255.254\n ospf network-type p2p\n ospf cost 10\n#\nreturn"},
+    {c:["display ip routing-table protocol ospf"], o:"Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nPublic routing table : OSPF\n         Destinations : 0        Routes : 0"},
+    {c:["display ip routing-table 10.255.0.1"], o:hwRT("Public",[])},
+    {c:["display ospf brief"], o:hwOspfBrief("10.255.0.12")},
+    {c:["display logbuffer"], o:"Oct 30 2026 14:01:18 PE-SUR-01 %%01SHELL/5/CMDRECORD(s)[310]:Recorded command information. (Task=VT0, Ip=10.250.1.21, User=usuario07, Command=\"mtu 1600\")\nOct 30 2026 14:01:21 PE-SUR-01 %%01OSPF/3/NBR_CHG_DOWN(l)[311]:Neighbor event:neighbor state changed to Down. (ProcessId=1, NeighborAddress=10.0.0.2, NeighborEvent=KillNbr, NeighborPreviousState=Full, NeighborCurrentState=Down)\nOct 30 2026 14:01:24 PE-SUR-01 %%01OSPF/4/NBR_CHANGE_E(l)[312]:Neighbor changes event: neighbor status changed. (ProcessId=1, NeighborAddress=10.0.0.2, NeighborEvent=AdjOk?, NeighborPreviousState=2Way, NeighborCurrentState=ExStart)\nOct 30 2026 14:03:11 PE-SUR-01 %%01OSPF/4/NBR_CHANGE_E(l)[313]:Neighbor changes event: neighbor status changed. (ProcessId=1, NeighborAddress=10.0.0.2, NeighborEvent=SeqNumberMismatch, NeighborPreviousState=ExStart, NeighborCurrentState=ExStart)"}
+   ]}
+ ],
+ hints:["Empieza por la tabla de vecinos en los dos equipos: show ip ospf neighbor (Cisco) y display ospf peer brief (Huawei).","El vecino aparece y el Dead Time se reinicia: los Hello llegan. ¿Qué parámetro NO viaja en el Hello?","Compara el MTU: show interfaces Te0/0/2 en P-CEN-01 y display ospf interface XGE0/0/1 en PE-SUR-01."],
+ q:{text:"¿Cuál es la causa más probable?", options:["MTU distinto: 1600 en PE-SUR-01 y 1500 en P-CEN-01","Temporizadores Hello/Dead distintos","Área OSPF distinta en cada extremo","El enlace de fibra está caído"], correct:0,
+  explain:"El vecino aparece y se queda en EXSTART/ExStart: los Hello llegan, pero el intercambio de DBD falla. El MTU no viaja en el Hello, así que con MTU distinto los routers se ven pero no pasan de ExStart/Exchange. PE-SUR-01 quedó con mtu 1600 (el log muestra el comando del cambio programado) y P-CEN-01 tiene 1500. El N1 documenta las dos salidas con la hora y escala: el cambio lo revierte N2 o quien hizo el cambio."},
+ keys:[{dev:"P-CEN-01",any:["show ip ospf neighbor"],label:"Estado del vecino en P-CEN-01"},{dev:"PE-SUR-01",any:["display ospf peer brief"],label:"Estado del vecino en PE-SUR-01"},{dev:"PE-SUR-01",any:["display ospf interface XGigabitEthernet0/0/1","display interface XGigabitEthernet0/0/1","display current-configuration interface XGigabitEthernet0/0/1"],label:"MTU en PE-SUR-01"},{dev:"P-CEN-01",any:["show interfaces TenGigabitEthernet0/0/2"],label:"MTU en P-CEN-01"}]
+},
+{
+ id:"ospf-timers", title:"OSPF: desapareció PE-NOR-01", level:"OSPF",
+ ticket:"Desde las 13:47 se cayeron los servicios MPLS de PE-NOR-01. El enlace P-CEN-01 Te0/0/1 a PE-NOR-01 XGE0/0/1 no tiene alarmas físicas y el ping entre las IP del enlace responde.",
+ goal:"Averigua por qué OSPF ya no forma la vecindad si el enlace está bien.",
+ devices:[
+  {name:"P-CEN-01", os:"cisco", role:"P · Cisco IOS-XE", vrfs:[],
+   pings:[{ip:"10.0.0.1",mtu:1500},{ip:"10.0.0.3",mtu:1500},{ip:"10.0.0.7",mtu:1500},{ip:"10.255.0.12",mtu:1500},{ip:"10.255.0.31",mtu:1500}],
+   cmds:[
+    {c:["show running-config"], o:ciPcenRun},
+    {c:["show ip ospf neighbor"], o:ciNbr(["10.255.0.12       0   FULL/  -        00:00:35    10.0.0.3        TenGigabitEthernet0/0/2","10.255.0.31       0   FULL/  -        00:00:38    10.0.0.7        TenGigabitEthernet0/0/3"])},
+    {c:["show ip ospf interface brief"], o:"Interface    PID   Area            IP Address/Mask    Cost  State Nbrs F/C\nLo0          1     0               10.255.0.1/32      1     LOOP  0/0\nTe0/0/1      1     0               10.0.0.0/31        10    P2P   0/0\nTe0/0/2      1     0               10.0.0.2/31        10    P2P   1/1\nTe0/0/3      1     0               10.0.0.6/31        10    P2P   1/1"},
+    {c:["show ip ospf interface TenGigabitEthernet0/0/1"], o:ciOspfIf("TenGigabitEthernet0/0/1","10.0.0.0/31",0,0)},
+    {c:["show interfaces TenGigabitEthernet0/0/1"], o:ciIf("TenGigabitEthernet0/0/1","CORE-A-PE-NOR-01-XGE0/0/1","10.0.0.0/31",1500)},
+    {c:["show ip interface brief"], o:ciIpBrief},
+    {c:["show ip route ospf"], o:"      10.0.0.0/8 is variably subnetted, 7 subnets, 2 masks\nO        10.255.0.12/32 [110/10] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2\nO        10.255.0.31/32 [110/10] via 10.0.0.7, 3d04h, TenGigabitEthernet0/0/3"},
+    {c:["show ip route 10.255.0.11"], o:"% Subnet not in table"},
+    {c:["show ip ospf"], o:ciOspf(100000)},
+    {c:["show running-config interface TenGigabitEthernet0/0/1"], o:ciRunIf("TenGigabitEthernet0/0/1","CORE-A-PE-NOR-01-XGE0/0/1","10.0.0.0")},
+    {c:["show logging"], o:"Log Buffer (65536 bytes):\n*Oct 30 13:47:20: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.11 on TenGigabitEthernet0/0/1 from FULL to DOWN, Neighbor Down: Dead timer expired\n*Oct 30 13:47:31: %OSPF-4-ERRRCV: Received invalid packet: mismatched hello parameters from 10.0.0.1, ID 10.255.0.11, TenGigabitEthernet0/0/1\n*Oct 30 13:48:01: %OSPF-4-ERRRCV: Received invalid packet: mismatched hello parameters from 10.0.0.1, ID 10.255.0.11, TenGigabitEthernet0/0/1"}
+   ]},
+  {name:"PE-NOR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"10.0.0.0",mtu:1500}],
+   cmds:[
+    {c:["display current-configuration"], o:hwRun("PE-NOR-01","10.255.0.11",["interface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10\n ospf timer hello 30"],["10.0.0.0 0.0.0.1"])},
+    {c:["display ospf peer brief"], o:hwPeer("10.255.0.11",[])},
+    {c:["display ospf interface XGigabitEthernet0/0/1"], o:hwOspfIf("10.255.0.11","10.0.0.1","XGigabitEthernet0/0/1",10,1500,30,120)},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/9        up    up        1%     1%            0          0\nLoopBack0                   up    up(s)     0%     0%            0          0\nNULL0                       up    up(s)     0%     0%            0          0\nXGigabitEthernet0/0/1       up    up        0.01%  0.01%         0          0"},
+    {c:["display interface XGigabitEthernet0/0/1"], o:"XGigabitEthernet0/0/1 current state : UP\nLine protocol current state : UP\nDescription:CORE-A-P-CEN-01-Te0/0/1\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 10.0.0.1/31\nPort Mode: COMMON FIBER\nSpeed : 10000,  Loopback: NONE\nDuplex: FULL,   Negotiation: DISABLE\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display current-configuration interface XGigabitEthernet0/0/1"], o:"#\ninterface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10\n ospf timer hello 30\n#\nreturn"},
+    {c:["display ip routing-table protocol ospf"], o:"Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nPublic routing table : OSPF\n         Destinations : 0        Routes : 0"},
+    {c:["display ospf brief"], o:hwOspfBrief("10.255.0.11")},
+    {c:["display logbuffer"], o:"Oct 30 2026 13:46:40 PE-NOR-01 %%01SHELL/5/CMDRECORD(s)[221]:Recorded command information. (Task=VT0, Ip=10.250.1.20, User=usuario02, Command=\"ospf timer hello 30\")\nOct 30 2026 13:47:18 PE-NOR-01 %%01OSPF/3/NBR_CHG_DOWN(l)[222]:Neighbor event:neighbor state changed to Down. (ProcessId=1, NeighborAddress=10.0.0.0, NeighborEvent=InactivityTimer, NeighborPreviousState=Full, NeighborCurrentState=Down)"}
+   ]}
+ ],
+ hints:["El ping entre las IP del enlace funciona: las capas 1 a 3 están bien. Mira la tabla de vecinos en los dos lados.","En P-CEN-01 la interfaz dice P2P 0/0: está arriba pero sin vecino. Compara los parámetros del Hello.","Revisa los temporizadores: show ip ospf interface Te0/0/1 y display ospf interface XGE0/0/1."],
+ q:{text:"¿Por qué no se forma la vecindad?", options:["Hello/Dead distintos: 30/120 en PE-NOR-01 y 10/40 en P-CEN-01","MTU distinto en los extremos","El enlace tiene errores CRC","Router ID duplicado"], correct:0,
+  explain:"La interfaz está arriba, sin errores, y el ping responde. Pero P-CEN-01 muestra P2P 0/0 y el log dice «mismatched hello parameters». En PE-NOR-01 alguien configuró ospf timer hello 30 (Dead pasa a 120). Si Hello/Dead no coinciden, el Hello se descarta y el vecino nunca aparece. El N1 documenta el log del comando, las dos salidas y escala."},
+ keys:[{dev:"P-CEN-01",any:["show ip ospf neighbor","show ip ospf interface brief"],label:"Vecinos o interfaces OSPF en P-CEN-01"},{dev:"PE-NOR-01",any:["display ospf peer brief"],label:"Vecinos en PE-NOR-01"},{dev:"PE-NOR-01",any:["display ospf interface XGigabitEthernet0/0/1","display current-configuration interface XGigabitEthernet0/0/1"],label:"Temporizadores en PE-NOR-01"},{dev:"P-CEN-01",any:["show ip ospf interface TenGigabitEthernet0/0/1","show logging"],label:"Temporizadores o log en P-CEN-01"}]
+},
+{
+ id:"ospf-init", title:"OSPF: el FortiGate quedó en INIT", level:"OSPF",
+ ticket:"Después de una ventana de mantenimiento en el switch de la sala, el firewall FW-CEN-01 perdió sus rutas OSPF. El puerto está arriba y el ping a la IP del enlace responde.",
+ goal:"Determina en qué sentido falla la comunicación OSPF.",
+ devices:[
+  {name:"P-CEN-01", os:"cisco", role:"P · Cisco IOS-XE", vrfs:[],
+   pings:[{ip:"10.0.0.7",mtu:1500},{ip:"10.0.0.1",mtu:1500},{ip:"10.0.0.3",mtu:1500}],
+   cmds:[
+    {c:["show running-config"], o:ciPcenRun},
+    {c:["show ip ospf neighbor"], o:ciNbr(["10.255.0.11       0   FULL/  -        00:00:35    10.0.0.1        TenGigabitEthernet0/0/1","10.255.0.12       0   FULL/  -        00:00:33    10.0.0.3        TenGigabitEthernet0/0/2","10.255.0.31       0   INIT/  -        00:00:34    10.0.0.7        TenGigabitEthernet0/0/3"])},
+    {c:["show ip ospf interface brief"], o:"Interface    PID   Area            IP Address/Mask    Cost  State Nbrs F/C\nLo0          1     0               10.255.0.1/32      1     LOOP  0/0\nTe0/0/1      1     0               10.0.0.0/31        10    P2P   1/1\nTe0/0/2      1     0               10.0.0.2/31        10    P2P   1/1\nTe0/0/3      1     0               10.0.0.6/31        10    P2P   0/1"},
+    {c:["show ip ospf interface TenGigabitEthernet0/0/3"], o:ciOspfIf("TenGigabitEthernet0/0/3","10.0.0.6/31",1,0)},
+    {c:["show interfaces TenGigabitEthernet0/0/3"], o:ciIf("TenGigabitEthernet0/0/3","CORE-A-FW-CEN-01-x1","10.0.0.6/31",1500)},
+    {c:["show ip interface brief"], o:ciIpBrief},
+    {c:["show ip route ospf"], o:"      10.0.0.0/8 is variably subnetted, 8 subnets, 2 masks\nO        10.255.0.11/32 [110/10] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nO        10.255.0.12/32 [110/10] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2"},
+    {c:["show ip ospf"], o:ciOspf(100000)},
+    {c:["show logging"], o:"Log Buffer (65536 bytes):\n*Oct 30 11:20:44: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.31 on TenGigabitEthernet0/0/3 from FULL to INIT, 1-Way"}
+   ]},
+  {name:"FW-CEN-01", os:"forti", role:"Firewall · FortiOS", vrfs:[],
+   pings:[{ip:"10.0.0.6",mtu:1500}],
+   cmds:[
+    {c:["get router info ospf neighbor"], o:"OSPF process 0, VRF 0:"},
+    {c:["get router info ospf interface x1"], o:"x1 is up, line protocol is up\n  Internet Address 10.0.0.7/31, Area 0.0.0.0, MTU 1500\n  Process ID 0, VRF 0, Router ID 10.255.0.31, Network Type POINTOPOINT, Cost: 10\n  Transmit Delay is 1 sec, State Point-To-Point\n  Timer intervals configured, Hello 10.000, Dead 40, Wait 40, Retransmit 5\n    Hello due in 00:00:06\n  Neighbor Count is 0, Adjacent neighbor count is 0\n  Hello received 0 sent 45, DD received 0 sent 0\n  LS-Req received 0 sent 0, LS-Upd received 0 sent 0\n  LS-Ack received 0 sent 0, Discarded 0"},
+    {c:["get router info routing-table ospf"], o:"Routing table for VRF=0"},
+    {c:["get router info routing-table all"], o:"Codes: K - kernel, C - connected, S - static, R - RIP, B - BGP\n       O - OSPF, IA - OSPF inter area\n\nRouting table for VRF=0\nC       10.0.0.6/31 is directly connected, x1\nC       10.255.0.31/32 is directly connected, loopback"},
+    {c:["show router ospf"], o:"config router ospf\n    set router-id 10.255.0.31\n    set auto-cost-ref-bandwidth 100000\n    config area\n        edit 0.0.0.0\n        next\n    end\n    config ospf-interface\n        edit \"core-x1\"\n            set interface \"x1\"\n            set network-type point-to-point\n            set cost 10\n        next\n    end\n    config network\n        edit 1\n            set prefix 10.0.0.6 255.255.255.254\n            set area 0.0.0.0\n        next\n    end\nend"}
+   ]}
+ ],
+ hints:["Mira en qué estado ve P-CEN-01 al FortiGate.","INIT significa que la comunicación va en un solo sentido. ¿Quién no escucha a quién?","En el FortiGate: get router info ospf interface x1. Mira «Hello received» y «sent»."],
+ q:{text:"¿Qué concluyes?", options:["Hello en un solo sentido: al FortiGate no le llegan los Hello de P-CEN-01","MTU distinto en los extremos","Hello/Dead distintos","La referencia de ancho de banda es distinta"], correct:0,
+  explain:"P-CEN-01 ve al FortiGate en INIT: recibe sus Hello, pero el FortiGate no lo nombra. El FortiGate confirma: Hello received 0, sent 45. Los temporizadores, el área y el MTU coinciden, y el ping unicast funciona. Algo deja pasar el tráfico normal pero no el multicast 224.0.0.5 o el protocolo 89 hacia el FortiGate (un switch intermedio después del mantenimiento o una política). El N1 documenta las dos salidas y escala."},
+ keys:[{dev:"P-CEN-01",any:["show ip ospf neighbor"],label:"Estado del vecino en P-CEN-01"},{dev:"FW-CEN-01",any:["get router info ospf interface x1"],label:"Contadores de Hello en el FortiGate"},{dev:"FW-CEN-01",any:["get router info ospf neighbor"],label:"Vecinos en el FortiGate"}]
+},
+{
+ id:"ospf-cost", title:"OSPF: SUR va lento en hora pico", level:"OSPF",
+ ticket:"Desde el lunes, los clientes de Internet dedicado de PE-SUR-01 que salen por NOR van lentos entre 18:00 y 22:00. No hay caídas. El viernes se instaló una radio de 1G de respaldo entre NOR y SUR.",
+ goal:"Averigua por dónde va el tráfico y por qué.",
+ devices:[
+  {name:"PE-NOR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"10.255.0.12",mtu:1500},{ip:"10.0.0.9",mtu:1500},{ip:"10.0.0.0",mtu:1500}],
+   cmds:[
+    {c:["display current-configuration"], o:hwRun("PE-NOR-01","10.255.0.11",["interface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10","interface GigabitEthernet0/0/9\n description RADIO-RESPALDO-NOR-SUR\n ip address 10.0.0.8 255.255.255.254\n ospf network-type p2p\n ospf cost 1"],["10.0.0.0 0.0.0.1","10.0.0.8 0.0.0.1"])},
+    {c:["display ip routing-table 10.255.0.12"], o:hwRT("Public",["   10.255.0.12/32   OSPF    10   1           D   10.0.0.9        GigabitEthernet0/0/9"])},
+    {c:["display ip routing-table protocol ospf"], o:"Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nPublic routing table : OSPF\n         Destinations : 4        Routes : 4\n\nDestination/Mask    Proto   Pre  Cost      Flags NextHop         Interface\n\n      10.0.0.2/31   OSPF    10   11          D   10.0.0.9        GigabitEthernet0/0/9\n      10.0.0.6/31   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1\n    10.255.0.1/32   OSPF    10   10          D   10.0.0.0        XGigabitEthernet0/0/1\n   10.255.0.12/32   OSPF    10   1           D   10.0.0.9        GigabitEthernet0/0/9"},
+    {c:["display ospf peer brief"], o:hwPeer("10.255.0.11",["0.0.0.0          XGigabitEthernet0/0/1            10.255.0.1       Full","0.0.0.0          GigabitEthernet0/0/9             10.255.0.12      Full"])},
+    {c:["display ospf interface GigabitEthernet0/0/9"], o:hwOspfIf("10.255.0.11","10.0.0.8","GigabitEthernet0/0/9",1,1500,10,40)},
+    {c:["display ospf interface XGigabitEthernet0/0/1"], o:hwOspfIf("10.255.0.11","10.0.0.1","XGigabitEthernet0/0/1",10,1500,10,40)},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/9        up    up        41%    97%           0          0\nLoopBack0                   up    up(s)     0%     0%            0          0\nNULL0                       up    up(s)     0%     0%            0          0\nXGigabitEthernet0/0/1       up    up        3%     2%            0          0"},
+    {c:["display interface GigabitEthernet0/0/9"], o:"GigabitEthernet0/0/9 current state : UP\nLine protocol current state : UP\nDescription:RADIO-RESPALDO-NOR-SUR\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 10.0.0.8/31\nSpeed : 1000,  Loopback: NONE\nDuplex: FULL,   Negotiation: ENABLE\nLast 300 seconds input rate 412330112 bits/sec, 51203 packets/sec\nLast 300 seconds output rate 968104512 bits/sec, 92877 packets/sec\nInput bandwidth utilization  : 41.23%\nOutput bandwidth utilization : 96.81%\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors, 18233 discards"},
+    {c:["display current-configuration interface GigabitEthernet0/0/9"], o:"#\ninterface GigabitEthernet0/0/9\n description RADIO-RESPALDO-NOR-SUR\n ip address 10.0.0.8 255.255.255.254\n ospf network-type p2p\n ospf cost 1\n#\nreturn"},
+    {c:["display current-configuration interface XGigabitEthernet0/0/1"], o:"#\ninterface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10\n#\nreturn"},
+    {c:["display ospf brief"], o:hwOspfBrief("10.255.0.11")}
+   ]}
+ ],
+ hints:["Pregunta primero por dónde sale el tráfico hacia la loopback de PE-SUR-01 (10.255.0.12).","Compara el costo de esa ruta con lo que costaría por el core (10 + 10).","Mira la configuración de la interfaz de la radio."],
+ q:{text:"¿Cuál es la causa?", options:["La radio tiene ospf cost 1 fijo a mano y OSPF la prefiere sobre el core","La referencia de ancho de banda es distinta en PE-NOR-01","Hay ECMP y el tráfico se reparte mal","El enlace del core tiene errores"], correct:0,
+  explain:"La ruta a 10.255.0.12 sale por GE0/0/9 (la radio) con costo 1, y por el core costaría 20. Con la referencia de 100 000, un enlace de 1G debería costar 100 y quedar de respaldo, pero alguien fijó ospf cost 1. Un costo fijo manda sobre la fórmula. En hora pico la radio llega al 97 % y descarta paquetes. El N1 no cambia el costo: documenta, revisa también PE-SUR-01 (la vuelta) y escala a N2."},
+ keys:[{dev:"PE-NOR-01",any:["display ip routing-table 10.255.0.12","display ip routing-table protocol ospf"],label:"Ruta que usa hacia PE-SUR-01"},{dev:"PE-NOR-01",any:["display current-configuration interface GigabitEthernet0/0/9","display ospf interface GigabitEthernet0/0/9"],label:"Costo de la radio"},{dev:"PE-NOR-01",any:["display interface GigabitEthernet0/0/9","display interface brief"],label:"Uso de la radio"}]
+},
+{
+ id:"vlan", title:"Cliente nuevo sin servicio (VLAN 310)", level:"VLAN",
+ ticket:"Instalación nueva: el cliente del puerto GE0/0/5 de SW-ACC-01 (VLAN 310) no tiene servicio. Los clientes de las VLAN 100 y 200 del mismo switch funcionan.",
+ goal:"Encuentra dónde se pierde la VLAN 310.",
+ devices:[
+  {name:"SW-ACC-01", os:"huawei", role:"Switch de acceso · Huawei", vrfs:[], pings:[],
+   cmds:[
+    {c:["display port vlan"], o:"Port                    Link Type    PVID  Trunk VLAN List\n-------------------------------------------------------------------------------\nGigabitEthernet0/0/1    access       100   -\nGigabitEthernet0/0/2    access       200   -\nGigabitEthernet0/0/5    access       310   -\nGigabitEthernet0/0/24   trunk        1     1 100 200 300"},
+    {c:["display vlan"], o:"The total number of vlans is : 5\n--------------------------------------------------------------------------------\nU: Up;         D: Down;         TG: Tagged;         UT: Untagged;\n--------------------------------------------------------------------------------\nVID  Type    Ports\n--------------------------------------------------------------------------------\n1    common  UT:GE0/0/24(U)\n100  common  UT:GE0/0/1(U)\n             TG:GE0/0/24(U)\n200  common  UT:GE0/0/2(U)\n             TG:GE0/0/24(U)\n300  common  TG:GE0/0/24(U)\n310  common  UT:GE0/0/5(U)"},
+    {c:["display vlan 310"], o:"--------------------------------------------------------------------------------\nU: Up;         D: Down;         TG: Tagged;         UT: Untagged;\n--------------------------------------------------------------------------------\nVID  Type    Ports\n--------------------------------------------------------------------------------\n310  common  UT:GE0/0/5(U)\n\nVID  Status  Property      MAC-LRN Statistics Description\n--------------------------------------------------------------------------------\n310  enable  default       enable  disable    CLIENTE-0310"},
+    {c:["display mac-address vlan 310"], o:"-------------------------------------------------------------------------------\nMAC Address    VLAN/       PEVLAN CEVLAN Port            Type      LSP/LSR-ID\n               VSI/SI                                              MAC-Tunnel\n-------------------------------------------------------------------------------\n5c1a-0b33-0310 310         -      -      GE0/0/5         dynamic   0/-\n-------------------------------------------------------------------------------\nTotal matching items on slot 0 displayed = 1"},
+    {c:["display mac-address vlan 100"], o:"-------------------------------------------------------------------------------\nMAC Address    VLAN/       PEVLAN CEVLAN Port            Type      LSP/LSR-ID\n               VSI/SI                                              MAC-Tunnel\n-------------------------------------------------------------------------------\n5c1a-0b33-0100 100         -      -      GE0/0/1         dynamic   0/-\n00e0-fc12-0005 100         -      -      GE0/0/24        dynamic   0/-\n-------------------------------------------------------------------------------\nTotal matching items on slot 0 displayed = 2"},
+    {c:["display mac-address"], o:"-------------------------------------------------------------------------------\nMAC Address    VLAN/       PEVLAN CEVLAN Port            Type      LSP/LSR-ID\n               VSI/SI                                              MAC-Tunnel\n-------------------------------------------------------------------------------\n5c1a-0b33-0100 100         -      -      GE0/0/1         dynamic   0/-\n00e0-fc12-0005 100         -      -      GE0/0/24        dynamic   0/-\n5c1a-0b33-0200 200         -      -      GE0/0/2         dynamic   0/-\n00e0-fc12-0005 200         -      -      GE0/0/24        dynamic   0/-\n5c1a-0b33-0310 310         -      -      GE0/0/5         dynamic   0/-\n-------------------------------------------------------------------------------\nTotal matching items on slot 0 displayed = 5"},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/1        up    up        2%     3%            0          0\nGigabitEthernet0/0/2        up    up        1%     1%            0          0\nGigabitEthernet0/0/5        up    up        0.01%  0%            0          0\nGigabitEthernet0/0/24       up    up        4%     3%            0          0"},
+    {c:["display interface GigabitEthernet0/0/5"], o:"GigabitEthernet0/0/5 current state : UP\nLine protocol current state : UP\nDescription:CLIENTE-0310\nSwitch Port, PVID :  310, TPID : 8100(Hex), The Maximum Frame Length is 9216\nSpeed : 1000,  Loopback: NONE\nDuplex: FULL,  Negotiation: ENABLE\nMdi   : AUTO\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display current-configuration interface GigabitEthernet0/0/24"], o:"#\ninterface GigabitEthernet0/0/24\n description UPLINK-PE-NOR-01\n port link-type trunk\n port trunk allow-pass vlan 100 200 300\n#\nreturn"},
+    {c:["display current-configuration interface GigabitEthernet0/0/5"], o:"#\ninterface GigabitEthernet0/0/5\n description CLIENTE-0310\n port link-type access\n port default vlan 310\n#\nreturn"},
+    {c:["display lldp neighbor brief"], o:"Local Intf       Neighbor Dev             Neighbor Intf             Exptime(s)\nGE0/0/24         PE-NOR-01                GE0/0/5                   106"}
+   ]}
+ ],
+ hints:["¿El switch está aprendiendo la MAC del cliente en la VLAN 310?","Compara con una VLAN que funciona: ¿por qué puerto aparece el gateway en la VLAN 100?","Revisa qué VLAN deja pasar el troncal hacia el PE: display port vlan."],
+ q:{text:"¿Dónde está la falla?", options:["La VLAN 310 no está permitida en el troncal GE0/0/24","El puerto GE0/0/5 está en la VLAN equivocada","El cable del cliente está dañado","La VLAN nativa es distinta en el troncal"], correct:0,
+  explain:"El puerto del cliente está arriba, en la VLAN 310, y su MAC se aprende en GE0/0/5. Pero en la VLAN 310 no aparece ninguna MAC por el troncal GE0/0/24, mientras que en la VLAN 100 sí aparece el gateway por ahí. El troncal solo deja pasar 1 100 200 300: la 310 no está permitida y se descarta en silencio. El N1 documenta display port vlan y escala para que la agreguen (y revisen los demás troncales del camino)."},
+ keys:[{dev:"SW-ACC-01",any:["display mac-address vlan 310","display mac-address"],label:"MAC aprendidas en la VLAN 310"},{dev:"SW-ACC-01",any:["display port vlan","display current-configuration interface GigabitEthernet0/0/24","display vlan","display vlan 310"],label:"VLAN permitidas en el troncal"}]
+},
+{
+ id:"duplex", title:"Cliente lento, sin caídas (UTP)", level:"Ethernet UTP",
+ ticket:"El cliente del puerto Gi1/0/12 de SW-DIS-02 reporta lentitud constante desde hace una semana, sobre todo al subir archivos. No hay caídas.",
+ goal:"Revisa el puerto, lee los contadores y clasifica la falla.",
+ devices:[
+  {name:"SW-DIS-02", os:"cisco", role:"Switch de distribución · Cisco", vrfs:[], pings:[],
+   cmds:[
+    {c:["show interfaces status"], o:"Port      Name               Status       Vlan       Duplex  Speed Type\nGi1/0/10  CLIENTE-0410       connected    410        a-full a-1000 10/100/1000BaseTX\nGi1/0/11  CLIENTE-0411       connected    411        a-full a-1000 10/100/1000BaseTX\nGi1/0/12  CLIENTE-0412       connected    412          full    100 10/100/1000BaseTX\nGi1/0/13  CLIENTE-0413       notconnect   413          auto   auto 10/100/1000BaseTX"},
+    {c:["show interfaces GigabitEthernet1/0/12"], o:n=>{const crc=13725+(n-1)*41, runts=2148+(n-1)*7, ie=crc+runts; return "GigabitEthernet1/0/12 is up, line protocol is up (connected)\n  Hardware is Gigabit Ethernet, address is 00aa.cc02.010c (bia 00aa.cc02.010c)\n  Description: CLIENTE-0412\n  MTU 1500 bytes, BW 100000 Kbit/sec, DLY 100 usec,\n     reliability 238/255, txload 3/255, rxload 5/255\n  Encapsulation ARPA, loopback not set\n  Full-duplex, 100Mb/s, media type is 10/100/1000BaseTX\n  input flow-control is off, output flow-control is unsupported\n  Last clearing of \"show interface\" counters never\n  5 minute input rate 2140000 bits/sec, 410 packets/sec\n  5 minute output rate 1310000 bits/sec, 260 packets/sec\n     8423611 packets input, 3421977812 bytes, 0 no buffer\n     Received 1203 broadcasts (980 multicasts)\n     "+runts+" runts, 0 giants, 0 throttles\n     "+ie+" input errors, "+crc+" CRC, 0 frame, 0 overrun, 0 ignored\n     0 watchdog, 980 multicast, 0 pause input\n     6120344 packets output, 2210993001 bytes, 0 underruns\n     0 output errors, 0 collisions, 1 interface resets\n     0 babbles, 0 late collision, 0 deferred";}},
+    {c:["show interfaces GigabitEthernet1/0/11"], o:"GigabitEthernet1/0/11 is up, line protocol is up (connected)\n  Description: CLIENTE-0411\n  MTU 1500 bytes, BW 1000000 Kbit/sec, DLY 10 usec,\n  Full-duplex, 1000Mb/s, media type is 10/100/1000BaseTX\n     0 runts, 0 giants, 0 throttles\n     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored\n     0 output errors, 0 collisions, 0 interface resets\n     0 babbles, 0 late collision, 0 deferred"},
+    {c:["show running-config interface GigabitEthernet1/0/12"], o:"Building configuration...\n\nCurrent configuration : 142 bytes\n!\ninterface GigabitEthernet1/0/12\n description CLIENTE-0412\n switchport access vlan 412\n switchport mode access\n speed 100\n duplex full\nend"},
+    {c:["show interfaces counters errors"], o:n=>"Port        Align-Err     FCS-Err    Xmit-Err     Rcv-Err  UnderSize  OutDiscards\nGi1/0/10            0           0           0           0          0            0\nGi1/0/11            0           0           0           0          0            0\nGi1/0/12            0       "+(13725+(n-1)*41)+"           0       "+(15873+(n-1)*48)+"       "+(2148+(n-1)*7)+"            0\nGi1/0/13            0           0           0           0          0            0"},
+    {c:["show logging"], o:"Log Buffer (32768 bytes):\n*Oct 23 09:12:40: %LINK-3-UPDOWN: Interface GigabitEthernet1/0/12, changed state to up\n*Oct 23 09:12:41: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet1/0/12, changed state to up"}
+   ]}
+ ],
+ hints:["Compara el puerto Gi1/0/12 con sus vecinos en show interfaces status. ¿Qué tiene distinto?","Mira los contadores en show interfaces Gi1/0/12. Ejecútalo dos veces: ¿siguen subiendo?","CRC y runts con colisiones en 0, en un puerto forzado: ¿qué dice la tabla de firmas?"],
+ q:{text:"¿Cómo clasificas la falla?", options:["Duplex mismatch: el puerto está forzado a 100/full y el cliente en automático quedó en half","Par del cable roto (speed downshift)","MTU distinto","VLAN no permitida"], correct:0,
+  explain:"Los demás puertos dicen a-full a-1000 (autonegociado). Gi1/0/12 dice full 100 sin «a-»: está forzado (speed 100, duplex full). El cliente en automático no recibe la negociación y por norma queda en half. Firma del lado full: CRC y runts que siguen subiendo, con 0 colisiones y 0 late collisions. Un par roto daría a-100 (negociado), no un forzado. El N1 documenta dos lecturas de contadores con la hora y escala para dejar ambos lados iguales."},
+ keys:[{dev:"SW-DIS-02",any:["show interfaces status","show running-config interface GigabitEthernet1/0/12"],label:"Velocidad y dúplex del puerto (forzado o auto)"},{dev:"SW-DIS-02",any:["show interfaces GigabitEthernet1/0/12","show interfaces counters errors"],label:"Contadores de errores"}]
+},
+{
+ id:"fibra", title:"Microcortes en un enlace de fibra", level:"Última milla",
+ ticket:"El cliente del puerto GE0/0/3 de PE-SUR-01 reporta microcortes y lentitud desde la mañana. El enlace es de fibra monomodo con SFP LX de 10 km.",
+ goal:"Lee la potencia óptica y los contadores, y clasifica la falla.",
+ devices:[
+  {name:"PE-SUR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[], pings:[],
+   cmds:[
+    {c:["display transceiver interface GigabitEthernet0/0/3 verbose","display transceiver interface GigabitEthernet0/0/3"], o:" GigabitEthernet0/0/3 transceiver information:\n-------------------------------------------------------------------\n Common information:\n   Transceiver Type                      :1000_BASE_LX_SFP\n   Connector Type                        :LC\n   Wavelength(nm)                        :1310\n   Transfer Distance(m)                  :10000(9um)\n   Digital Diagnostic Monitoring         :YES\n   Vendor Name                           :HUAWEI\n-------------------------------------------------------------------\n Diagnostic information:\n   Temperature(°C)                       :38.21\n   Supply Voltage(V)                     :3.30\n   Bias Current(mA)                      :17.42\n   Current Rx Power(dBm)                 :-27.43\n   Default Rx Power High Threshold(dBm)  :0.00\n   Default Rx Power Low Threshold(dBm)   :-20.00\n   Current Tx Power(dBm)                 :-5.61\n   Default Tx Power High Threshold(dBm)  :-3.00\n   Default Tx Power Low Threshold(dBm)   :-9.50"},
+    {c:["display interface GigabitEthernet0/0/3"], o:n=>"GigabitEthernet0/0/3 current state : UP\nLine protocol current state : UP\nLast physical up time   : 2026-10-30 13:58:12\nLast physical down time : 2026-10-30 13:58:09\nDescription:CLIENTE-0403-FIBRA\nRoute Port,The Maximum Transmit Unit is 1500\nPort Mode: COMMON FIBER\nSpeed : 1000,  Loopback: NONE\nDuplex: FULL,   Negotiation: ENABLE\nLast 300 seconds input rate 18310232 bits/sec, 2210 packets/sec\nLast 300 seconds output rate 40211320 bits/sec, 4103 packets/sec\nInput:  "+(4821+(n-1)*63)+" CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/2        up    up        12%    9%            0          0\nGigabitEthernet0/0/3        up    up        2%     4%         4821          0\nXGigabitEthernet0/0/1       up    up        0.01%  0.01%         0          0"},
+    {c:["display alarm active"], o:"Sequence   AlarmId    Severity Date Time  Description\n------------------------------------------------------------------------\n4112       0x8130041  Major    2026-10-30 08:41:07 The optical module receive power is too low. (Interface=GigabitEthernet0/0/3, Current=-27.43dBm, Threshold=-20.00dBm)"},
+    {c:["display logbuffer"], o:"Oct 30 2026 08:41:07 PE-SUR-01 %%01DEVM/2/hwOpticalRxPowerLow(l)[401]:The optical module receive power is too low. (Interface=GigabitEthernet0/0/3)\nOct 30 2026 11:20:33 PE-SUR-01 %%01IFNET/4/LINK_STATE(l)[402]:The line protocol on the interface GigabitEthernet0/0/3 has entered the DOWN state.\nOct 30 2026 11:20:36 PE-SUR-01 %%01IFNET/4/LINK_STATE(l)[403]:The line protocol on the interface GigabitEthernet0/0/3 has entered the UP state.\nOct 30 2026 13:58:09 PE-SUR-01 %%01IFNET/4/LINK_STATE(l)[404]:The line protocol on the interface GigabitEthernet0/0/3 has entered the DOWN state.\nOct 30 2026 13:58:12 PE-SUR-01 %%01IFNET/4/LINK_STATE(l)[405]:The line protocol on the interface GigabitEthernet0/0/3 has entered the UP state."}
+   ]}
+ ],
+ hints:["Lee la potencia RX y TX del SFP: display transceiver interface GE0/0/3.","Compara la RX con los rangos del curso: normal -8 a -20, luz baja -24 a -35, sin luz -40 o LOS.","Mira si los CRC siguen subiendo y cuándo empezó la alarma."],
+ q:{text:"¿Cómo clasificas la falla?", options:["Luz baja: RX -27,4 dBm bajo el umbral de -20 (conector sucio, empalme o curvatura)","Saturación: hay que poner un atenuador","Sin luz: fibra cortada","Duplex mismatch"], correct:0,
+  explain:"La TX es normal (-5,6 dBm) pero la RX está en -27,4 dBm, por debajo del umbral de -20: llega poca luz. Eso causa CRC que siguen subiendo y microcortes (los down/up del log). No es corte (habría LOS o -40) ni saturación (cerca de 0). El N1 anota RX, TX, hora de la alarma (08:41) y los CRC, y escala a campo para limpiar o revisar conectores, empalmes o curvaturas."},
+ keys:[{dev:"PE-SUR-01",any:["display transceiver interface GigabitEthernet0/0/3 verbose"],label:"Potencia óptica RX/TX"},{dev:"PE-SUR-01",any:["display interface GigabitEthernet0/0/3","display interface brief"],label:"Contadores CRC"},{dev:"PE-SUR-01",any:["display alarm active","display logbuffer"],label:"Alarmas o log (hora de inicio)"}]
+},
+{
+ id:"vrf", title:"«El CPE no responde» (VRF)", level:"VRF",
+ ticket:"El monitoreo indica que el CPE del cliente DEMO-ALFA (172.16.50.2) no responde. El cliente no ha llamado. Confirma si el servicio está arriba.",
+ goal:"Verifica la conectividad con el CPE desde PE-NOR-01.",
+ devices:[
+  {name:"PE-NOR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:["DEMO-ALFA","GESTION"],
+   pings:[{ip:"172.16.50.2",vrf:"DEMO-ALFA",mtu:1500},{ip:"10.0.0.0",mtu:1500}],
+   cmds:[
+    {c:["display ip routing-table 172.16.50.2"], o:hwRT("Public",[])},
+    {c:["display ip vpn-instance"], o:" Total VPN-Instances configured      : 2\n Total IPv4 VPN-Instances configured : 2\n\n  VPN-Instance Name               RD                    Address-family\n  DEMO-ALFA                       65000:150             IPv4\n  GESTION                         65000:999             IPv4"},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/1        up    up        6%     4%            0          0\nGigabitEthernet0/0/1.150    up    up        --     --            0          0\nLoopBack0                   up    up(s)     0%     0%            0          0\nXGigabitEthernet0/0/1       up    up        3%     2%            0          0"},
+    {c:["display current-configuration interface GigabitEthernet0/0/1.150"], o:"#\ninterface GigabitEthernet0/0/1.150\n description CLIENTE-DEMO-ALFA\n dot1q termination vid 150\n ip binding vpn-instance DEMO-ALFA\n ip address 172.16.50.1 255.255.255.252\n arp broadcast enable\n#\nreturn"},
+    {c:["display ip routing-table vpn-instance DEMO-ALFA"], o:hwRT("DEMO-ALFA",["     172.16.50.0/30  Direct  0    0           D   172.16.50.1     GigabitEthernet0/0/1.150","     172.16.50.1/32  Direct  0    0           D   127.0.0.1       GigabitEthernet0/0/1.150","    192.168.150.0/24 Static  60   0          RD   172.16.50.2     GigabitEthernet0/0/1.150"])},
+    {c:["display ip routing-table vpn-instance DEMO-ALFA 172.16.50.2"], o:hwRT("DEMO-ALFA",["     172.16.50.0/30  Direct  0    0           D   172.16.50.1     GigabitEthernet0/0/1.150"])},
+    {c:["display arp vpn-instance DEMO-ALFA"], o:"IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE\n                                          VLAN\n------------------------------------------------------------------------------\n172.16.50.1     00e0-fc12-0150            I -  GE0/0/1.150    DEMO-ALFA\n172.16.50.2     5c1a-0b33-a150  18        D-0  GE0/0/1.150    DEMO-ALFA\n                                          150\n------------------------------------------------------------------------------\nTotal:2         Dynamic:1       Static:0     Interface:1"},
+    {c:["display arp all"], o:"IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE\n                                          VLAN\n------------------------------------------------------------------------------\n10.0.0.1        00e0-fc12-0011            I -  XGE0/0/1\n10.0.0.0        00aa.bb01-0001  12        D-0  XGE0/0/1\n172.16.50.1     00e0-fc12-0150            I -  GE0/0/1.150    DEMO-ALFA\n172.16.50.2     5c1a-0b33-a150  18        D-0  GE0/0/1.150    DEMO-ALFA\n                                          150\n------------------------------------------------------------------------------\nTotal:4         Dynamic:2       Static:0     Interface:2"}
+   ]}
+ ],
+ hints:["Prueba ping 172.16.50.2. Si falla, no concluyas todavía.","¿En qué tabla de rutas estás buscando? Revisa qué VPN-instance existen.","Busca la subinterfaz del cliente y su línea ip binding vpn-instance. Repite el ping con -vpn-instance (el nombre distingue mayúsculas)."],
+ q:{text:"¿Qué concluyes?", options:["El CPE responde: el ping falló porque se hizo en la tabla global y el cliente está en la VPN-instance DEMO-ALFA","El CPE está caído","La VLAN 150 no está permitida","Falta la ruta estática hacia la LAN del cliente"], correct:0,
+  explain:"Un ping sin VRF busca en la tabla global (Public), donde 172.16.50.2 no existe. La subinterfaz GE0/0/1.150 tiene ip binding vpn-instance DEMO-ALFA, y en esa tabla la ruta está, el ARP del CPE está aprendido y ping -vpn-instance DEMO-ALFA 172.16.50.2 responde. El servicio está arriba: el N1 revisa por qué alertó el monitoreo (por ejemplo, si sondea sin la VRF) y documenta."},
+ keys:[{dev:"PE-NOR-01",any:["display ip vpn-instance","display current-configuration interface GigabitEthernet0/0/1.150"],label:"Identificar la VRF del cliente"},{dev:"PE-NOR-01",any:["__ping_vrf"],label:"Ping dentro de la VRF"},{dev:"PE-NOR-01",any:["display ip routing-table vpn-instance DEMO-ALFA","display ip routing-table vpn-instance DEMO-ALFA 172.16.50.2","display arp vpn-instance DEMO-ALFA"],label:"Ruta o ARP dentro de la VRF"}]
+},
+{
+ id:"mtu", title:"«Las páginas cargan a medias»", level:"MTU",
+ ticket:"Cliente de Internet dedicado en PE-SUR-01 (CPE 100.64.20.2): las páginas HTTPS cargan a medias y las descargas grandes se congelan. El ping normal funciona. El último tramo pasa por un convertidor y una radio.",
+ goal:"Mide la MTU real del camino hasta el CPE.",
+ devices:[
+  {name:"PE-SUR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"100.64.20.2",mtu:1496}],
+   cmds:[
+    {c:["display interface GigabitEthernet0/0/4"], o:"GigabitEthernet0/0/4 current state : UP\nLine protocol current state : UP\nDescription:CLIENTE-0420-INET (CONVERTIDOR+RADIO)\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 100.64.20.1/30\nSpeed : 1000,  Loopback: NONE\nDuplex: FULL,   Negotiation: ENABLE\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/0/4        up    up        3%     6%            0          0\nXGigabitEthernet0/0/1       up    up        0.01%  0.01%         0          0"},
+    {c:["display current-configuration interface GigabitEthernet0/0/4"], o:"#\ninterface GigabitEthernet0/0/4\n description CLIENTE-0420-INET (CONVERTIDOR+RADIO)\n ip address 100.64.20.1 255.255.255.252\n#\nreturn"},
+    {c:["display ip routing-table 100.64.20.2"], o:hwRT("Public",["     100.64.20.0/30  Direct  0    0           D   100.64.20.1     GigabitEthernet0/0/4"])},
+    {c:["display arp all"], o:"IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE\n------------------------------------------------------------------------------\n100.64.20.1     00e0-fc12-0420            I -  GE0/0/4\n100.64.20.2     5c1a-0b33-0420  15        D-0  GE0/0/4\n------------------------------------------------------------------------------\nTotal:2         Dynamic:1       Static:0     Interface:1"}
+   ]}
+ ],
+ hints:["Prueba un ping normal: ping 100.64.20.2.","Ahora prohíbe la fragmentación: ping -s 1472 -f 100.64.20.2 (1472 + 28 = 1500).","Baja el tamaño de a poco (1470, 1468…) hasta que responda. MTU = dato + 28."],
+ q:{text:"¿Qué concluyes?", options:["La MTU real del camino es 1496: un equipo intermedio descarta los paquetes de 1500","La MTU está bien en 1500; el problema es de DNS","Hay un duplex mismatch en GE0/0/4","Falta la ruta de regreso"], correct:0,
+  explain:"El ping normal (84 bytes) pasa. Con DF, -s 1472 (1500) falla y -s 1468 (1496) responde: la MTU real del camino es 1496. Lo pequeño pasa y lo grande no, y por eso HTTPS y las descargas se congelan. El PE tiene 1500, así que el límite está en un equipo intermedio (convertidor o radio, por ejemplo si suma una etiqueta). El N1 documenta la prueba (qué tamaño pasa y cuál no) y escala."},
+ keys:[{dev:"PE-SUR-01",any:["__ping_df_fail"],label:"Ping con DF que falla en 1500"},{dev:"PE-SUR-01",any:["__ping_df_ok"],label:"Ping con DF que pasa con un tamaño menor"}]
+}
+,
+{
+ id:"ospf-qinq", title:"PE-NOR-02 no sube tras cambiar el radio", level:"OSPF · MTU en medio",
+ ticket:"El sábado se reemplazó el radioenlace entre PE-NOR-01 y PE-NOR-02 por uno nuevo que además transporta otras VLAN con QinQ. Desde entonces los clientes de PE-NOR-02 no salen a Internet. El enlace se ve arriba en los dos routers.",
+ goal:"Aísla por qué la vecindad OSPF del Área 10 no llega a Full.",
+ devices:[
+  {name:"PE-NOR-02", os:"cisco", role:"PE interno Área 10 · Cisco", vrfs:[],
+   pings:[{ip:"10.0.0.10",mtu:1496}],
+   cmds:[
+    {c:["show ip ospf neighbor"], o:ciNbr(["10.255.0.11       0   EXCHANGE/  -    00:00:34    10.0.0.10       GigabitEthernet0/0/0"])},
+    {c:["show interfaces GigabitEthernet0/0/0"], o:"GigabitEthernet0/0/0 is up, line protocol is up\n  Description: RADIO-NOR-01\n  Internet address is 10.0.0.11/31\n  MTU 1500 bytes, BW 1000000 Kbit/sec, DLY 10 usec,\n  Full Duplex, 1000Mbps, media type is RJ45\n     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored\n     0 output errors, 0 collisions, 0 interface resets"},
+    {c:["show ip ospf interface GigabitEthernet0/0/0"], o:"GigabitEthernet0/0/0 is up, line protocol is up\n  Internet Address 10.0.0.11/31, Area 10, Attached via Network Statement\n  Process ID 1, Router ID 10.255.0.21, Network Type POINT_TO_POINT, Cost: 100\n  Transmit Delay is 1 sec, State POINT_TO_POINT\n  Timer intervals configured, Hello 10, Dead 40, Wait 40, Retransmit 5\n  Neighbor Count is 1, Adjacent neighbor count is 0"},
+    {c:["show ip route ospf"], o:""},
+    {c:["show ip ospf"], o:" Routing Process \"ospf 1\" with ID 10.255.0.21\n Reference bandwidth unit is 100000 mbps\n    Area 10\n        Number of interfaces in this area is 2 (1 loopback)"},
+    {c:["show logging"], o:"Log Buffer (65536 bytes):\n*Nov  1 09:14:02: %LINK-3-UPDOWN: Interface GigabitEthernet0/0/0, changed state to up\n*Nov  1 09:14:05: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.11 on GigabitEthernet0/0/0 from 2WAY to EXSTART, AdjOK?\n*Nov  1 09:14:06: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.11 on GigabitEthernet0/0/0 from EXSTART to EXCHANGE, Negotiation Done\n*Nov  1 09:16:11: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.11 on GigabitEthernet0/0/0 from EXCHANGE to DOWN, Neighbor Down: Too many retransmissions"}
+   ]},
+  {name:"PE-NOR-01", os:"huawei", role:"ABR · Huawei", vrfs:[],
+   pings:[{ip:"10.0.0.11",mtu:1496}],
+   cmds:[
+    {c:["display ospf peer brief"], o:hwPeer("10.255.0.11",["0.0.0.0          XGigabitEthernet0/0/1            10.255.0.1       Full","0.0.0.10         GigabitEthernet0/0/2             10.255.0.21      Exchange"])},
+    {c:["display interface GigabitEthernet0/0/2"], o:"GigabitEthernet0/0/2 current state : UP\nLine protocol current state : UP\nDescription: Radioenlace hacia PE-NOR-02\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 10.0.0.10/31\nSpeed : 1000,  Loopback: NONE\nDuplex: FULL,   Negotiation: ENABLE\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors"},
+    {c:["display ospf interface GigabitEthernet0/0/2"], o:hwOspfIf("10.255.0.11","10.0.0.10","GigabitEthernet0/0/2",100,1500,10,40)},
+    {c:["display ospf error"], o:"          OSPF Process 1 with Router ID 10.255.0.11\n                  OSPF error statistics\n General packet errors:\n 0     : IP: received my own packet     0     : Bad packet\n DD packet errors:\n 0     : MTU option mismatch           0     : Neighbor state low\n LS ACK/REQ/UPD errors:\n 0     : Bad LSA"},
+    {c:["display ospf lsdb"], o:"\n         OSPF Process 1 with Router ID 10.255.0.11\n                 Link State Database\n\n                         Area: 0.0.0.10\n Type      LinkState ID    AdvRouter          Age  Len   Sequence   Metric\n Router    10.255.0.11     10.255.0.11        380  36    80000009   0"},
+    {c:["display logbuffer"], o:"Nov  1 2026 09:14:05 PE-NOR-01 %%01OSPF/4/NBR_CHANGE_E(l)[88]:Neighbor changes event: neighbor status changed. (ProcessId=1, NeighborAddress=10.0.0.11, NeighborEvent=NegotiationDone, NeighborPreviousState=ExStart, NeighborCurrentState=Exchange)"}
+   ]}
+ ],
+ hints:["Mira el estado del vecino en los dos lados.","Los Hello pasan. Compara el MTU de las dos interfaces: ¿son distintos?","Si son iguales, prueba lo que hay en medio: ping 10.0.0.10 size 1500 df-bit (Cisco) o ping -s 1472 -f 10.0.0.11 (Huawei), y baja el tamaño."],
+ q:{text:"¿Qué concluyes?", options:["Los MTU de los routers son iguales (1500): el radio nuevo con QinQ descarta las tramas de 1500","MTU distinto entre los dos routers","Router ID duplicado","Área distinta en cada extremo"], correct:0,
+  explain:"Los dos lados están en Exchange: los Hello pasan, los DBD grandes no. Los MTU de los routers son iguales (1500) y display ospf error no muestra MTU option mismatch. El ping con DF pasa hasta 1496 y falla con 1500: faltan 4 bytes, la etiqueta QinQ del transporte del radio, cuyo MTU no se ajustó. El N1 no toca el MTU ni usa mtu-ignore: documenta los estados, los MTU iguales y la prueba de ping, y escala a transporte/radio."},
+ keys:[{dev:"PE-NOR-02",any:["show ip ospf neighbor"],label:"Estado del vecino en PE-NOR-02"},{dev:"PE-NOR-01",any:["display ospf peer brief"],label:"Estado del vecino en PE-NOR-01"},{dev:"PE-NOR-02",any:["show interfaces GigabitEthernet0/0/0"],label:"MTU en PE-NOR-02"},{dev:"PE-NOR-01",any:["display interface GigabitEthernet0/0/2","display ospf interface GigabitEthernet0/0/2"],label:"MTU en PE-NOR-01"},{dev:"PE-NOR-02",any:["__ping_df_fail"],label:"Ping con DF que falla en 1500"},{dev:"PE-NOR-02",any:["__ping_df_ok"],label:"Ping con DF que pasa con menos (1496)"}]
+},
+{
+ id:"bgp-as", title:"El hotel no navega tras cambiar su router", level:"BGP · estados",
+ ticket:"El Hotel Marea Azul (AS 65020) cambió su router el sábado y desde entonces no navega. El enlace de fibra con PE-SUR-01 (subinterfaz GE0/1/0.120) está arriba.",
+ goal:"Encuentra por qué la sesión BGP con el hotel no se mantiene.",
+ devices:[
+  {name:"PE-SUR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"198.51.100.1",mtu:1500}],
+   cmds:[
+    {c:["display bgp peer"], o:n=>"\n BGP local router ID : 10.255.0.21\n Local AS number : 64500\n Total number of peers : 3                 Peers in established state : 2\n\n  Peer            V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  PrefRcv\n  10.255.0.101    4       64500     8432     8105     0 0120h15m Established       86\n  10.255.0.102    4       64500     8429     8103     0 0120h15m Established       86\n  198.51.100.1    4       65020        3       41     0 00h00m0"+((n*3)%9+1)+"s       Idle        0"},
+    {c:["display bgp peer 198.51.100.1 verbose"], o:" BGP Peer is 198.51.100.1,  remote AS 65020\n Type: EBGP link\n BGP current state: Idle\n Configured: Active Hold Time: 180 sec   Keepalive Time:60 sec\n Last error: OPEN message error / Bad peer AS (received)\n Import ip-prefix: HOTEL-IN\n Peer Preferred Value: 0"},
+    {c:["display interface brief"], o:hwIfBriefHead+"GigabitEthernet0/1/0            up    up        3%     2%            0          0\nGigabitEthernet0/1/0.120        up    up        --     --            0          0\nXGigabitEthernet0/0/1           up    up        0.01%  0.01%         0          0"},
+    {c:["display interface GigabitEthernet0/1/0.120"], o:"GigabitEthernet0/1/0.120 current state : UP\nLine protocol current state : UP\nDescription:HOTEL-MAREA-AZUL\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 198.51.100.0/31\nInput:  0 CRC\nOutput: 0 errors"},
+    {c:["display logbuffer"], o:"Nov  1 2026 10:02:14 PE-SUR-01 %%01BGP/3/STATE_CHG_UPDOWN(l)[512]:The status of the peer 198.51.100.1 changed from OPENSENT to IDLE. (InstanceName=Public, StateChangeReason=Receive Notification)\nNov  1 2026 10:02:14 PE-SUR-01 %%01BGP/6/RECV_NOTIFY(l)[513]:The router received NOTIFICATION from the peer 198.51.100.1. (ErrorCode=2 (OPEN message error), SubErrorCode=2 (Bad peer AS))"},
+    {c:["display current-configuration configuration bgp"], o:"#\nbgp 64500\n router-id 10.255.0.21\n peer 198.51.100.1 as-number 65020\n peer 198.51.100.1 description HOTEL-MAREA-AZUL\n #\n ipv4-family unicast\n  peer 198.51.100.1 enable\n  peer 198.51.100.1 ip-prefix HOTEL-IN import\n  peer 198.51.100.1 default-route-advertise\n#\nreturn"}
+   ]}
+ ],
+ hints:["Mira el estado de la sesión con el hotel y su Up/Down. Repite el comando.","¿Es transporte? Prueba ping 198.51.100.1 y la interfaz.","Lee el log: ¿qué Notification hay y quién la mandó (sent o received)?"],
+ q:{text:"¿Cuál es la causa?", options:["El router nuevo del hotel tiene mal configurado el AS del ISP (Bad peer AS, received)","Falla de la última milla","El filtro de prefijos descarta la ruta del hotel","Venció el hold time por pérdida de Keepalives"], correct:0,
+  explain:"La sesión está en Idle con Up/Down de segundos que se reinicia: el TCP sube y cae enseguida, así que no es transporte (no está en Active). El ping responde y la interfaz está limpia. El log dice que el PE recibió una Notification «Bad peer AS» del hotel: el CPE nuevo espera otro AS. En el PE el hotel está con as-number 65020, como en la orden. El N1 no toca el PE: escala con display bgp peer, el log con hora y el ping al área que coordina con el cliente."},
+ keys:[{dev:"PE-SUR-01",any:["display bgp peer","display bgp peer 198.51.100.1 verbose"],label:"Estado de la sesión"},{dev:"PE-SUR-01",any:["display interface brief","display interface GigabitEthernet0/1/0.120"],label:"Interfaz del cliente"},{dev:"PE-SUR-01",any:["display logbuffer"],label:"Log con la Notification"}]
+},
+{
+ id:"filtro", title:"Desde Internet no llegan al hotel", level:"Filtros de rutas",
+ ticket:"Desde anoche, desde Internet no se llega a los servidores del Hotel Marea Azul (203.0.113.16/29). La sesión BGP con el hotel está arriba. Ayer hubo un cambio en los filtros de PE-SUR-01.",
+ goal:"Encuentra dónde se pierde la ruta del hotel.",
+ devices:[
+  {name:"PE-SUR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:[],
+   pings:[{ip:"198.51.100.1",mtu:1500}],
+   cmds:[
+    {c:["display bgp peer"], o:"\n BGP local router ID : 10.255.0.21\n Local AS number : 64500\n Total number of peers : 3                 Peers in established state : 3\n\n  Peer            V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  PrefRcv\n  10.255.0.101    4       64500     8432     8105     0 0120h15m Established       86\n  10.255.0.102    4       64500     8429     8103     0 0120h15m Established       86\n  198.51.100.1    4       65020     2210     2214     0 0045h02m Established        0"},
+    {c:["display bgp routing-table peer 198.51.100.1 received-routes"], o:" BGP Local router ID is 10.255.0.21\n Status codes: * - valid, > - best, d - damped, x - best external, a - add path,\n               h - history,  i - internal, s - suppressed, S - Stale\n               Origin : i - IGP, e - EGP, ? - incomplete\n Total Number of Routes: 1\n        Network            NextHop        MED        LocPrf    PrefVal Path/Ogn\n        203.0.113.16/29    198.51.100.1   50                   0      65020i"},
+    {c:["display bgp routing-table peer 198.51.100.1 advertised-routes"], o:" Total Number of Routes: 1\n        Network            NextHop        MED        LocPrf    PrefVal Path/Ogn\n *>     0.0.0.0            198.51.100.0   0                    0      i"},
+    {c:["display bgp routing-table 203.0.113.16 29"], o:" Info: The network does not exist."},
+    {c:["display bgp peer 198.51.100.1 verbose"], o:" BGP Peer is 198.51.100.1,  remote AS 65020\n Type: EBGP link\n BGP current state: Established, Up for 45h02m\n Import ip-prefix: HOTEL-IN\n Route limit: 10, alert at 80%\n Keep all routes: Yes"},
+    {c:["display ip ip-prefix HOTEL-IN"], o:"Prefix-list HOTEL-IN\nPermitted 0\nDenied 37\n        index: 10          permit  203.0.113.16/29    ge 30   le 32"},
+    {c:["display ip routing-table 203.0.113.16"], o:hwRT("Public",[])},
+    {c:["display logbuffer"], o:"Nov  2 2026 22:41:07 PE-SUR-01 %%01SHELL/5/CMDRECORD(s)[601]:Recorded command information. (Task=VT0, Ip=10.250.1.27, User=usuario11, Command=\"ip ip-prefix HOTEL-IN index 10 permit 203.0.113.16 29 greater-equal 30 less-equal 32\")"}
+   ]}
+ ],
+ hints:["La sesión está arriba. Compara lo que llegó con lo que se aceptó: received-routes.","La ruta llegó pero sin *. ¿Qué filtro tiene el vecino? display bgp peer 198.51.100.1 verbose.","Lee la ip-prefix y sus contadores: display ip ip-prefix HOTEL-IN."],
+ q:{text:"¿Dónde está la falla?", options:["El filtro HOTEL-IN exige /30 a /32 (ge 30) y el hotel anuncia un /29","La sesión BGP con el hotel está caída","El hotel no anuncia su bloque","Falta la ruta por defecto hacia el hotel"], correct:0,
+  explain:"La sesión está Established pero con 0 prefijos. received-routes muestra el /29 sin *: llegó y no se aceptó. El vecino usa ip-prefix HOTEL-IN de entrada, y la lista tiene ge 30 le 32 (Permitted 0): exige máscaras de /30 o más y el hotel anuncia un /29, así que cae en el deny implícito. El borde sigue anunciando el /24 a Internet, el tráfico llega a Ficticel pero adentro nadie conoce el /29. El N1 escala con received-routes, la ip-prefix con sus contadores y la hora del cambio, y menciona el refresco suave."},
+ keys:[{dev:"PE-SUR-01",any:["display bgp routing-table peer 198.51.100.1 received-routes"],label:"Lo que llegó (received-routes)"},{dev:"PE-SUR-01",any:["display bgp peer 198.51.100.1 verbose"],label:"Qué filtro tiene el vecino"},{dev:"PE-SUR-01",any:["display ip ip-prefix HOTEL-IN"],label:"La prefix-list y sus contadores"}]
+}
+];
+
+/* =================== Práctica libre (red sana, todo ficticio) =================== */
+const I=(what,look,eq)=>({what,look,eq});
+const hwVer="Huawei Versatile Routing Platform Software\nVRP (R) software, Version 8.210 (NE40E V800R021C10SPC100)\nCopyright (C) 2012-2026 Huawei Technologies Co., Ltd.\nHUAWEI NE40E-X8A uptime is 124 days, 3 hours, 12 minutes";
+const norRun=hwRun("PE-NOR-01","10.255.0.11",["interface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10","interface GigabitEthernet0/0/9\n description RADIO-RESPALDO-NOR-SUR\n ip address 10.0.0.8 255.255.255.254\n ospf network-type p2p","interface GigabitEthernet0/0/1.150\n description CLIENTE-DEMO-ALFA\n dot1q termination vid 150\n ip binding vpn-instance DEMO-ALFA\n ip address 172.16.50.1 255.255.255.252\n arp broadcast enable"],["10.0.0.0 0.0.0.1","10.0.0.8 0.0.0.1"]);
+const FREE={devices:[
+ {name:"PE-NOR-01", os:"huawei", role:"PE · Huawei VRP", vrfs:["DEMO-ALFA","GESTION"],
+  pings:[{ip:"10.0.0.0",mtu:1500},{ip:"10.255.0.1",mtu:1500},{ip:"10.255.0.12",mtu:1500},{ip:"10.0.0.9",mtu:1500},{ip:"172.16.50.2",vrf:"DEMO-ALFA",mtu:1500}],
+  cmds:[
+   {c:["display version"],o:hwVer,i:I("Muestra el modelo, la versión de software y cuánto tiempo lleva encendido (uptime).","El uptime: si dice minutos u horas, el equipo se reinició hace poco. Anótalo en el ticket.","Cisco: show version · FortiGate: get system status")},
+   {c:["display current-configuration"],o:norRun,i:I("Muestra toda la configuración activa (la que está en memoria).","Es larga: fíltrala con | begin ospf o | include <texto>. Lo que no se guardó con save se pierde al reiniciar.","Cisco: show running-config · FortiGate: show")},
+   {c:["display saved-configuration"],o:norRun,i:I("Muestra la configuración guardada, la que carga el equipo al reiniciar.","Si es distinta de display current-configuration, hay cambios sin guardar.","Cisco: show startup-config")},
+   {c:["display current-configuration interface XGigabitEthernet0/0/1"],o:"#\ninterface XGigabitEthernet0/0/1\n description CORE-A-P-CEN-01-Te0/0/1\n ip address 10.0.0.1 255.255.255.254\n ospf network-type p2p\n ospf cost 10\n#\nreturn",i:I("Muestra la configuración de una sola interfaz.","Descripción, IP, MTU, VLAN, VRF (ip binding vpn-instance) y si hay un costo OSPF fijo a mano.","Cisco: show running-config interface <id>")},
+   {c:["display current-configuration interface GigabitEthernet0/0/1.150"],o:"#\ninterface GigabitEthernet0/0/1.150\n description CLIENTE-DEMO-ALFA\n dot1q termination vid 150\n ip binding vpn-instance DEMO-ALFA\n ip address 172.16.50.1 255.255.255.252\n arp broadcast enable\n#\nreturn",i:I("Configuración de la subinterfaz de un cliente.","dot1q termination vid = la VLAN del cliente; ip binding vpn-instance = su VRF. Con ese nombre haces ping y ves rutas.","Cisco: show running-config interface <id> (línea vrf forwarding)")},
+   {c:["display interface brief"],o:hwIfBriefHead+"GigabitEthernet0/0/1        up    up        6%     4%            0          0\nGigabitEthernet0/0/1.150    up    up        --     --            0          0\nGigabitEthernet0/0/9        up    up        1%     1%            0          0\nGigabitEthernet0/0/10       down  down      0%     0%            0          0\nGigabitEthernet0/0/11       *down down      0%     0%            0          0\nLoopBack0                   up    up(s)     0%     0%            0          0\nNULL0                       up    up(s)     0%     0%            0          0\nXGigabitEthernet0/0/1       up    up        3%     2%            0          0",i:I("Resumen de todas las interfaces: estado físico (PHY), protocolo, uso y errores.","down = sin enlace; *down = apagada a mano (shutdown); inErrors distinto de 0; InUti/OutUti cerca de 100 % = saturada.","Cisco: show ip interface brief / show interfaces status")},
+   {c:["display interface XGigabitEthernet0/0/1"],o:"XGigabitEthernet0/0/1 current state : UP\nLine protocol current state : UP\nLast line protocol up time : 2026-06-28 10:58:41\nDescription:CORE-A-P-CEN-01-Te0/0/1\nRoute Port,The Maximum Transmit Unit is 1500\nInternet Address is 10.0.0.1/31\nPort Mode: COMMON FIBER\nSpeed : 10000,  Loopback: NONE\nDuplex: FULL,   Negotiation: DISABLE\nLast 300 seconds input rate 321004112 bits/sec, 40211 packets/sec\nLast 300 seconds output rate 210334000 bits/sec, 30102 packets/sec\nInput bandwidth utilization  : 3.21%\nOutput bandwidth utilization : 2.10%\nInput:  0 CRC, 0 Giants, 0 Runts\nOutput: 0 errors",i:I("Detalle de una interfaz.","Estado, MTU, velocidad y dúplex, tasa de entrada y salida, CRC/Giants/Runts y desde cuándo está arriba. Repite el comando: lo que importa es si los errores suben.","Cisco: show interfaces <id> · FortiGate: diagnose hardware deviceinfo nic <port>")},
+   {c:["display ip interface brief"],o:"Interface                         IP Address/Mask      Physical   Protocol  VPN\nGigabitEthernet0/0/1.150          172.16.50.1/30       up         up        DEMO-ALFA\nGigabitEthernet0/0/9              10.0.0.8/31          up         up        --\nLoopBack0                         10.255.0.11/32       up         up(s)     --\nXGigabitEthernet0/0/1             10.0.0.1/31          up         up        --",i:I("Lista las IP de cada interfaz y su estado.","Qué IP tiene cada puerto y en qué VRF está (columna VPN).","Cisco: show ip interface brief")},
+   {c:["display transceiver interface XGigabitEthernet0/0/1 verbose","display transceiver interface XGigabitEthernet0/0/1"],o:" XGigabitEthernet0/0/1 transceiver information:\n-------------------------------------------------------------------\n Common information:\n   Transceiver Type                      :10GBASE_LR_SFP\n   Connector Type                        :LC\n   Wavelength(nm)                        :1310\n   Transfer Distance(m)                  :10000(9um)\n   Digital Diagnostic Monitoring         :YES\n-------------------------------------------------------------------\n Diagnostic information:\n   Temperature(°C)                       :35.10\n   Current Rx Power(dBm)                 :-9.82\n   Default Rx Power Low Threshold(dBm)   :-14.40\n   Current Tx Power(dBm)                 :-1.95\n   Default Tx Power Low Threshold(dBm)   :-8.20",i:I("Muestra los datos del SFP y la potencia óptica (DDM).","RX normal -8 a -20 dBm; luz baja -24 a -35; sin luz -40 o LOS; saturación 0 a -3. Compárala también con los umbrales del propio SFP.","Cisco: show interfaces transceiver")},
+   {c:["display arp all"],o:"IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE\n                                          VLAN\n------------------------------------------------------------------------------\n10.0.0.1        00e0-fc12-0011            I -  XGE0/0/1\n10.0.0.0        00aa-bb01-0001  12        D-0  XGE0/0/1\n10.0.0.9        00e0-fc33-0909  17        D-0  GE0/0/9\n172.16.50.1     00e0-fc12-0150            I -  GE0/0/1.150    DEMO-ALFA\n172.16.50.2     5c1a-0b33-a150  18        D-0  GE0/0/1.150    DEMO-ALFA\n                                          150\n------------------------------------------------------------------------------\nTotal:5         Dynamic:3       Static:0     Interface:2",i:I("Tabla ARP: qué MAC corresponde a cada IP, por qué interfaz y en qué VRF.","Si la IP del cliente aparece con MAC, hay capa 2 hasta él. Úsalo con | include <ip>.","Cisco: show ip arp · FortiGate: get system arp")},
+   {c:["display lldp neighbor brief"],o:"Local Intf       Neighbor Dev             Neighbor Intf             Exptime(s)\nXGE0/0/1         P-CEN-01                 Te0/0/1                   104\nGE0/0/9          RADIO-NOR-01             eth0                      99",i:I("Muestra los equipos vecinos conectados a cada puerto.","Confirma a qué equipo y a qué puerto llega cada enlace antes de diagnosticar.","Cisco: show cdp neighbors / show lldp neighbors")},
+   {c:["display ip routing-table"],o:hwRT("Public",["      0.0.0.0/0     Static  60   0          RD   10.255.0.1      XGigabitEthernet0/0/1","      10.0.0.0/31   Direct  0    0           D   10.0.0.1        XGigabitEthernet0/0/1","      10.0.0.2/31   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1","      10.0.0.6/31   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1","      10.0.0.8/31   Direct  0    0           D   10.0.0.8        GigabitEthernet0/0/9","    10.255.0.1/32   OSPF    10   10          D   10.0.0.0        XGigabitEthernet0/0/1","   10.255.0.11/32   Direct  0    0           D   127.0.0.1       LoopBack0","   10.255.0.12/32   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1","   10.255.0.31/32   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1"]),i:I("Tabla de rutas global (Public).","Proto (Direct, Static, OSPF), Pre (preferencia), Cost, NextHop e Interface. 0.0.0.0/0 es la ruta por defecto.","Cisco: show ip route · FortiGate: get router info routing-table all")},
+   {c:["display ip routing-table 10.255.0.12"],o:hwRT("Public",["   10.255.0.12/32   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1"]),i:I("Muestra la ruta que usa el router para llegar a esa IP (el comando estrella).","Por qué interfaz sale, con qué protocolo y costo. Aquí va por el core con costo 20 y no por la radio (100). Si no sale nada, no hay ruta.","Cisco: show ip route <ip>")},
+   {c:["display ip routing-table protocol ospf"],o:"Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nPublic routing table : OSPF\n         Destinations : 5        Routes : 5\n\nDestination/Mask    Proto   Pre  Cost      Flags NextHop         Interface\n\n      10.0.0.2/31   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1\n      10.0.0.6/31   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1\n    10.255.0.1/32   OSPF    10   10          D   10.0.0.0        XGigabitEthernet0/0/1\n   10.255.0.12/32   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1\n   10.255.0.31/32   OSPF    10   20          D   10.0.0.0        XGigabitEthernet0/0/1",i:I("Solo las rutas aprendidas por OSPF.","Que estén las loopbacks de los demás routers (10.255.0.x/32). Sin ellas caen BGP y MPLS.","Cisco: show ip route ospf")},
+   {c:["display ip routing-table protocol static"],o:"Route Flags: R - relay, D - download to fib\n------------------------------------------------------------------------------\nPublic routing table : Static\n         Destinations : 1        Routes : 1        Configured Routes : 1\n\nStatic routing table status : <Active>\n         Destinations : 1        Routes : 1\n\nDestination/Mask    Proto   Pre  Cost      Flags NextHop         Interface\n\n      0.0.0.0/0     Static  60   0          RD   10.255.0.1      XGigabitEthernet0/0/1",i:I("Solo las rutas estáticas.","Preferencia 60 (o 100 si es flotante). Si una estática configurada no aparece activa, su next-hop no es alcanzable.","Cisco: show ip route static")},
+   {c:["display ospf peer brief"],o:hwPeer("10.255.0.11",["0.0.0.0          XGigabitEthernet0/0/1            10.255.0.1       Full","0.0.0.0          GigabitEthernet0/0/9             10.255.0.12      Full"]),i:I("Lista los vecinos OSPF y su estado.","Que estén todos los vecinos esperados y en Full. ExStart/Exchange = MTU; Init = un solo sentido.","Cisco: show ip ospf neighbor · FortiGate: get router info ospf neighbor")},
+   {c:["display ospf interface XGigabitEthernet0/0/1"],o:hwOspfIf("10.255.0.11","10.0.0.1","XGigabitEthernet0/0/1",10,1500,10,40),i:I("Parámetros OSPF de una interfaz.","Cost, Type (P2P), MTU y Hello/Dead. Hello/Dead y MTU deben coincidir con el vecino.","Cisco: show ip ospf interface <id>")},
+   {c:["display ospf interface GigabitEthernet0/0/9"],o:hwOspfIf("10.255.0.11","10.0.0.8","GigabitEthernet0/0/9",100,1500,10,40),i:I("Parámetros OSPF de la radio de respaldo.","Cost 100: con la referencia de 100 000, un enlace de 1G cuesta 100 y queda de respaldo frente al core (10).","Cisco: show ip ospf interface <id>")},
+   {c:["display ospf brief"],o:hwOspfBrief("10.255.0.11"),i:I("Datos generales del proceso OSPF.","Router ID, preferencia (10 interna, 150 externa) y Bandwidth-reference, que debe ser 100000 en todos los routers.","Cisco: show ip ospf")},
+   {c:["display bgp peer"],o:"\n BGP local router ID : 10.255.0.11\n Local AS number : 65000\n Total number of peers : 2                 Peers in established state : 2\n\n  Peer            V          AS  MsgRcvd  MsgSent  OutQ  Up/Down       State  PrefRcv\n  10.255.0.2      4       65000   183211   183190     0 124d03h  Established     1210\n  10.255.0.3      4       65000   183208   183194     0 124d03h  Established     1210",i:I("Lista las sesiones BGP y su estado.","Established = bien; Idle, Active o Connect = la sesión no levanta. Up/Down dice desde cuándo. Se arma entre loopbacks: si OSPF pierde la loopback, BGP cae.","Cisco: show ip bgp summary · FortiGate: get router info bgp summary")},
+   {c:["display ip vpn-instance"],o:" Total VPN-Instances configured      : 2\n Total IPv4 VPN-Instances configured : 2\n\n  VPN-Instance Name               RD                    Address-family\n  DEMO-ALFA                       65000:150             IPv4\n  GESTION                         65000:999             IPv4",i:I("Lista las VRF (VPN-instance) del equipo.","El nombre exacto (distingue mayúsculas) para usarlo en ping -vpn-instance y en la tabla de rutas de la VRF.","Cisco: show vrf")},
+   {c:["display ip routing-table vpn-instance DEMO-ALFA"],o:hwRT("DEMO-ALFA",["     172.16.50.0/30  Direct  0    0           D   172.16.50.1     GigabitEthernet0/0/1.150","     172.16.50.1/32  Direct  0    0           D   127.0.0.1       GigabitEthernet0/0/1.150","    192.168.150.0/24 Static  60   0          RD   172.16.50.2     GigabitEthernet0/0/1.150"]),i:I("Tabla de rutas de una VRF (la del cliente).","Las rutas del cliente solo aparecen aquí, no en la tabla global.","Cisco: show ip route vrf <nombre>")},
+   {c:["display arp vpn-instance DEMO-ALFA"],o:"IP ADDRESS      MAC ADDRESS     EXPIRE(M) TYPE INTERFACE      VPN-INSTANCE\n------------------------------------------------------------------------------\n172.16.50.1     00e0-fc12-0150            I -  GE0/0/1.150    DEMO-ALFA\n172.16.50.2     5c1a-0b33-a150  18        D-0  GE0/0/1.150    DEMO-ALFA\n------------------------------------------------------------------------------\nTotal:2         Dynamic:1       Static:0     Interface:1",i:I("Tabla ARP solo de una VRF.","Si la IP del CPE aparece con MAC, hay capa 2 hasta el cliente.","Cisco: show ip arp vrf <nombre>")},
+   {c:["display alarm active"],o:"Sequence   AlarmId    Severity Date Time  Description\n------------------------------------------------------------------------\n2201       0x8520003  Warning  2026-10-29 22:14:03 The interface GigabitEthernet0/0/10 is Down. (Interface=GigabitEthernet0/0/10)",i:I("Lista las alarmas activas.","Severidad, fecha y hora de inicio y descripción. La hora ayuda a ubicar cuándo empezó la falla.","Cisco: show logging · FortiGate: get system status / log")},
+   {c:["display logbuffer"],o:"Oct 29 2026 22:14:03 PE-NOR-01 %%01IFNET/4/LINK_STATE(l)[118]:The line protocol on the interface GigabitEthernet0/0/10 has entered the DOWN state.\nOct 30 2026 08:02:11 PE-NOR-01 %%01SHELL/5/LOGIN(s)[119]:User usuario05 login. (Ip=10.250.1.25)\nOct 30 2026 08:03:40 PE-NOR-01 %%01SHELL/5/LOGOUT(s)[120]:User usuario05 logout. (Ip=10.250.1.25)",i:I("Muestra el registro de eventos del equipo.","Caídas de interfaces, cambios de OSPF/BGP, comandos ejecutados y su hora. Filtra con | include <interfaz> o | include OSPF.","Cisco: show logging")},
+   {c:["display cpu-usage"],o:"CPU Usage Stat. Cycle: 60 (Second)\nCPU Usage            : 14% Max: 41%\nCPU Usage Stat. Time : 2026-10-30  14:10:27\nCPU utilization for five seconds: 13%: one minute: 14%: five minutes: 14%",i:I("Muestra el uso de CPU.","CPU alta sostenida (más de 80 %) puede hacer que se caigan protocolos como OSPF o BGP.","Cisco: show processes cpu · FortiGate: get system performance status")},
+   {c:["display memory-usage"],o:"Memory utilization statistics at 2026-10-30 14:10:27\nSystem Total Memory Is: 4194304 Kbytes\nTotal Memory Used Is: 1803551 Kbytes\nMemory Using Percentage Is: 43%",i:I("Muestra el uso de memoria.","Más de 85-90 % sostenido es motivo para escalar.","Cisco: show memory statistics")},
+   {c:["display temperature all"],o:"Slot  Card  Sensor Status   Current(C)  Lower(C)  Lower    Upper(C)  Upper\n                                                 Resume             Resume\n1     -     1      NORMAL   38          0         4        75        70\n2     -     1      NORMAL   36          0         4        75        70",i:I("Temperatura de las tarjetas.","Status NORMAL. Si se acerca al límite Upper, revisar ventilación o ventiladores.","Cisco: show environment all")},
+   {c:["display users"],o:"  User-Intf    Delay    Type   Network Address     AuthenStatus    AuthorcmdFlag\n+ 34  VTY 0   00:00:00  SSH    10.250.1.30                  pass           no\n  Username : usuario09",i:I("Muestra quién está conectado al equipo.","El + marca tu sesión. Útil para saber si alguien más está trabajando en el equipo.","Cisco: show users")}
+  ]},
+ {name:"SW-ACC-01", os:"huawei", role:"Switch · Huawei", vrfs:[], pings:[],
+  cmds:[
+   {c:["display vlan"],o:"The total number of vlans is : 4\n--------------------------------------------------------------------------------\nU: Up;         D: Down;         TG: Tagged;         UT: Untagged;\n--------------------------------------------------------------------------------\nVID  Type    Ports\n--------------------------------------------------------------------------------\n1    common  UT:GE0/0/24(U)\n100  common  UT:GE0/0/1(U)\n             TG:GE0/0/24(U)\n200  common  UT:GE0/0/2(U)\n             TG:GE0/0/24(U)\n310  common  UT:GE0/0/5(U)\n             TG:GE0/0/24(U)",i:I("Lista las VLAN y qué puertos tiene cada una.","UT = sale sin etiqueta (access); TG = con etiqueta (troncal). (U) = puerto arriba.","Cisco: show vlan brief")},
+   {c:["display port vlan"],o:"Port                    Link Type    PVID  Trunk VLAN List\n-------------------------------------------------------------------------------\nGigabitEthernet0/0/1    access       100   -\nGigabitEthernet0/0/2    access       200   -\nGigabitEthernet0/0/5    access       310   -\nGigabitEthernet0/0/24   trunk        1     1 100 200 310",i:I("Muestra el tipo de cada puerto, su PVID y las VLAN permitidas en los troncales.","Que la VLAN del cliente esté en la lista del troncal. Si falta, se descarta en silencio.","Cisco: show interfaces trunk")},
+   {c:["display mac-address"],o:"-------------------------------------------------------------------------------\nMAC Address    VLAN/       PEVLAN CEVLAN Port            Type      LSP/LSR-ID\n               VSI/SI                                              MAC-Tunnel\n-------------------------------------------------------------------------------\n5c1a-0b33-0100 100         -      -      GE0/0/1         dynamic   0/-\n00e0-fc12-0005 100         -      -      GE0/0/24        dynamic   0/-\n5c1a-0b33-0200 200         -      -      GE0/0/2         dynamic   0/-\n00e0-fc12-0005 200         -      -      GE0/0/24        dynamic   0/-\n5c1a-0b33-0310 310         -      -      GE0/0/5         dynamic   0/-\n00e0-fc12-0005 310         -      -      GE0/0/24        dynamic   0/-\n-------------------------------------------------------------------------------\nTotal matching items on slot 0 displayed = 6",i:I("Tabla MAC: qué MAC se aprendió en qué puerto y VLAN.","La MAC del cliente en su puerto y la del gateway por el troncal. Si la del cliente no aparece, la trama no llega (capa 1 o VLAN).","Cisco: show mac address-table")},
+   {c:["display mac-address vlan 100"],o:"-------------------------------------------------------------------------------\nMAC Address    VLAN/       PEVLAN CEVLAN Port            Type      LSP/LSR-ID\n-------------------------------------------------------------------------------\n5c1a-0b33-0100 100         -      -      GE0/0/1         dynamic   0/-\n00e0-fc12-0005 100         -      -      GE0/0/24        dynamic   0/-\n-------------------------------------------------------------------------------\nTotal matching items on slot 0 displayed = 2",i:I("Tabla MAC de una sola VLAN.","Deben aparecer el cliente (puerto de acceso) y el gateway (troncal).","Cisco: show mac address-table vlan <id>")},
+   {c:["display stp brief"],o:" MSTID  Port                        Role  STP State     Protection\n   0    GigabitEthernet0/0/1        DESI  FORWARDING      NONE\n   0    GigabitEthernet0/0/2        DESI  FORWARDING      NONE\n   0    GigabitEthernet0/0/5        DESI  FORWARDING      NONE\n   0    GigabitEthernet0/0/24       ROOT  FORWARDING      NONE",i:I("Estado de Spanning Tree por puerto.","FORWARDING = pasa tráfico; DISCARDING = bloqueado por STP. ROOT = el puerto hacia el switch raíz.","Cisco: show spanning-tree")},
+   {c:["display interface brief"],o:hwIfBriefHead+"GigabitEthernet0/0/1        up    up        2%     3%            0          0\nGigabitEthernet0/0/2        up    up        1%     1%            0          0\nGigabitEthernet0/0/5        up    up        1%     1%            0          0\nGigabitEthernet0/0/24       up    up        4%     3%            0          0",i:I("Resumen de las interfaces del switch.","Estado físico, uso y errores por puerto.","Cisco: show interfaces status")},
+   {c:["display current-configuration interface GigabitEthernet0/0/24"],o:"#\ninterface GigabitEthernet0/0/24\n description UPLINK-PE-NOR-01\n port link-type trunk\n port trunk allow-pass vlan 100 200 310\n#\nreturn",i:I("Configuración del troncal.","port link-type trunk y la lista allow-pass vlan.","Cisco: show running-config interface <id>")},
+   {c:["display lldp neighbor brief"],o:"Local Intf       Neighbor Dev             Neighbor Intf             Exptime(s)\nGE0/0/24         PE-NOR-01                GE0/0/5                   106",i:I("Equipos vecinos por puerto.","A qué equipo sube el troncal.","Cisco: show cdp neighbors")}
+  ]},
+ {name:"P-CEN-01", os:"cisco", role:"Router · Cisco IOS-XE", vrfs:["GESTION"],
+  pings:[{ip:"10.0.0.1",mtu:1500},{ip:"10.0.0.3",mtu:1500},{ip:"10.0.0.7",mtu:1500},{ip:"10.255.0.11",mtu:1500},{ip:"10.255.0.12",mtu:1500},{ip:"10.255.0.31",mtu:1500}],
+  cmds:[
+   {c:["show version"],o:"Cisco IOS XE Software, Version 17.09.04a\nCisco IOS Software [Cupertino], ASR1000 Software (X86_64_LINUX_IOSD-UNIVERSALK9-M)\nP-CEN-01 uptime is 3 days, 4 hours, 2 minutes\nSystem returned to ROM by Reload Command\ncisco ASR1001-X (1RU) processor",i:I("Modelo, versión y tiempo encendido.","Uptime y motivo del último reinicio (returned to ROM by...).","Huawei: display version")},
+   {c:["show running-config"],o:ciPcenRun,i:I("Toda la configuración activa.","Fíltrala con | section ospf, | include <texto> o | begin interface.","Huawei: display current-configuration")},
+   {c:["show running-config interface TenGigabitEthernet0/0/1"],o:ciRunIf("TenGigabitEthernet0/0/1","CORE-A-PE-NOR-01-XGE0/0/1","10.0.0.0"),i:I("Configuración de una interfaz.","Descripción, IP, VRF (vrf forwarding), costo OSPF.","Huawei: display current-configuration interface <id>")},
+   {c:["show ip interface brief"],o:ciIpBrief,i:I("IP y estado de cada interfaz.","Status/Protocol up/up. administratively down = apagada a mano.","Huawei: display ip interface brief")},
+   {c:["show interfaces TenGigabitEthernet0/0/1"],o:ciIf("TenGigabitEthernet0/0/1","CORE-A-PE-NOR-01-XGE0/0/1","10.0.0.0/31",1500),i:I("Detalle de una interfaz.","Estado, MTU, dúplex y velocidad, tasas, input errors, CRC, collisions. Repítelo para ver si los errores suben.","Huawei: display interface <id>")},
+   {c:["show interfaces transceiver"],o:"                                     Optical   Optical\n           Temperature  Voltage  Current   Tx Power  Rx Power\nPort       (Celsius)    (Volts)  (mA)      (dBm)     (dBm)\n---------  -----------  -------  --------  --------  --------\nTe0/0/1      34.2       3.29      38.1      -2.1      -9.7\nTe0/0/2      33.8       3.30      37.9      -2.0      -10.4\nTe0/0/3      35.0       3.30      38.4      -2.2      -8.9",i:I("Potencia óptica de los SFP (DDM).","Rx Power: normal entre -8 y -20 dBm.","Huawei: display transceiver interface <id> verbose")},
+   {c:["show ip arp"],o:"Protocol  Address          Age (min)  Hardware Addr   Type   Interface\nInternet  10.0.0.0                -   00aa.bb01.0001  ARPA   TenGigabitEthernet0/0/1\nInternet  10.0.0.1               12   00e0.fc12.0011  ARPA   TenGigabitEthernet0/0/1\nInternet  10.0.0.3                8   00e0.fc12.0001  ARPA   TenGigabitEthernet0/0/2\nInternet  10.0.0.7               15   0009.0f09.0001  ARPA   TenGigabitEthernet0/0/3",i:I("Tabla ARP.","Qué MAC tiene cada IP vecina. - en Age = IP propia.","Huawei: display arp all")},
+   {c:["show cdp neighbors"],o:"Capability Codes: R - Router, S - Switch, H - Host\nDevice ID        Local Intrfce     Holdtme    Capability  Platform  Port ID\nSW-DIS-02        Ten 0/0/4         152             S I    C9300-48T Ten 1/1/1",i:I("Vecinos Cisco (protocolo CDP).","Solo ve equipos Cisco. Para Huawei y otros, usa show lldp neighbors.","Huawei: display lldp neighbor brief")},
+   {c:["show lldp neighbors"],o:"Capability codes: (R) Router, (B) Bridge\nDevice ID           Local Intf     Hold-time  Capability      Port ID\nPE-NOR-01           Te0/0/1        120        R               XGE0/0/1\nPE-SUR-01           Te0/0/2        120        R               XGE0/0/1\nFW-CEN-01           Te0/0/3        120        R               x1\n\nTotal entries displayed: 3",i:I("Vecinos por LLDP (estándar, cualquier marca).","A qué equipo y puerto llega cada interfaz.","Huawei: display lldp neighbor brief")},
+   {c:["show ip route"],o:"Codes: L - local, C - connected, S - static, R - RIP, B - BGP\n       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1\n       E2 - OSPF external type 2, * - candidate default\n\nGateway of last resort is not set\n\n      10.0.0.0/8 is variably subnetted, 11 subnets, 2 masks\nC        10.0.0.0/31 is directly connected, TenGigabitEthernet0/0/1\nL        10.0.0.0/32 is directly connected, TenGigabitEthernet0/0/1\nC        10.0.0.2/31 is directly connected, TenGigabitEthernet0/0/2\nL        10.0.0.2/32 is directly connected, TenGigabitEthernet0/0/2\nC        10.0.0.6/31 is directly connected, TenGigabitEthernet0/0/3\nL        10.0.0.6/32 is directly connected, TenGigabitEthernet0/0/3\nO        10.0.0.8/31 [110/110] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2\n                     [110/110] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nC        10.255.0.1/32 is directly connected, Loopback0\nO        10.255.0.11/32 [110/10] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nO        10.255.0.12/32 [110/10] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2\nO        10.255.0.31/32 [110/10] via 10.0.0.7, 3d04h, TenGigabitEthernet0/0/3",i:I("Tabla de rutas completa.","La letra (C conectada, S estática, O OSPF, B BGP), [distancia/costo] y via. La 10.0.0.8/31 tiene dos via con el mismo costo: eso es ECMP.","Huawei: display ip routing-table")},
+   {c:["show ip route 10.255.0.12"],o:"Routing entry for 10.255.0.12/32\n  Known via \"ospf 1\", distance 110, metric 10, type intra area\n  Last update from 10.0.0.3 on TenGigabitEthernet0/0/2, 3d04h ago\n  Routing Descriptor Blocks:\n  * 10.0.0.3, from 10.255.0.12, 3d04h ago, via TenGigabitEthernet0/0/2\n      Route metric is 10, traffic share count is 1",i:I("La ruta que usa para esa IP (el comando estrella).","Known via (protocolo), distance, metric (costo) y la interfaz de salida.","Huawei: display ip routing-table <ip>")},
+   {c:["show ip route ospf"],o:"      10.0.0.0/8 is variably subnetted, 11 subnets, 2 masks\nO        10.0.0.8/31 [110/110] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2\n                     [110/110] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nO        10.255.0.11/32 [110/10] via 10.0.0.1, 3d04h, TenGigabitEthernet0/0/1\nO        10.255.0.12/32 [110/10] via 10.0.0.3, 3d04h, TenGigabitEthernet0/0/2\nO        10.255.0.31/32 [110/10] via 10.0.0.7, 3d04h, TenGigabitEthernet0/0/3",i:I("Solo las rutas de OSPF.","Las loopbacks de los demás routers. [110/10] = distancia 110 / costo 10.","Huawei: display ip routing-table protocol ospf")},
+   {c:["show ip ospf neighbor"],o:ciNbr(["10.255.0.11       0   FULL/  -        00:00:36    10.0.0.1        TenGigabitEthernet0/0/1","10.255.0.12       0   FULL/  -        00:00:33    10.0.0.3        TenGigabitEthernet0/0/2","10.255.0.31       0   FULL/  -        00:00:38    10.0.0.7        TenGigabitEthernet0/0/3"]),i:I("Vecinos OSPF y su estado.","Todos en FULL. El - indica punto a punto (sin DR). Dead Time baja de 40 a 30 y vuelve; nunca debe llegar a 0.","Huawei: display ospf peer brief")},
+   {c:["show ip ospf interface brief"],o:"Interface    PID   Area            IP Address/Mask    Cost  State Nbrs F/C\nLo0          1     0               10.255.0.1/32      1     LOOP  0/0\nTe0/0/1      1     0               10.0.0.0/31        10    P2P   1/1\nTe0/0/2      1     0               10.0.0.2/31        10    P2P   1/1\nTe0/0/3      1     0               10.0.0.6/31        10    P2P   1/1",i:I("Interfaces que están dentro de OSPF.","Cost (10 en 10G), State (P2P; DOWN = capa 1/2) y Nbrs F/C (vecinos en Full / total).","Huawei: display ospf interface")},
+   {c:["show ip ospf"],o:ciOspf(100000),i:I("Datos del proceso OSPF.","Router ID (with ID) y Reference bandwidth (100000 igual en todos).","Huawei: display ospf brief")},
+   {c:["show ip bgp summary"],o:"BGP router identifier 10.255.0.1, local AS number 65000\nBGP table version is 18342, main routing table version 18342\n\nNeighbor        V           AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd\n10.255.0.11     4        65000  183190  183211    18342    0    0 3d04h        410\n10.255.0.12     4        65000  183194  183208    18342    0    0 3d04h        402",i:I("Sesiones BGP.","Un número en State/PfxRcd = sesión arriba (prefijos recibidos). Idle o Active = caída.","Huawei: display bgp peer")},
+   {c:["show vrf"],o:"  Name                             Default RD            Protocols   Interfaces\n  GESTION                          65000:999             ipv4        Gi0/0/0",i:I("Lista las VRF.","Nombre exacto para ping vrf y show ip route vrf.","Huawei: display ip vpn-instance")},
+   {c:["show logging"],o:"Log Buffer (65536 bytes):\n*Oct 27 10:11:02: %OSPF-5-ADJCHG: Process 1, Nbr 10.255.0.31 on TenGigabitEthernet0/0/3 from LOADING to FULL, Loading Done\n*Oct 30 08:02:44: %SEC_LOGIN-5-LOGIN_SUCCESS: Login Success [user: usuario05] [Source: 10.250.1.25]",i:I("Registro de eventos.","Cambios de estado de interfaces y protocolos con su hora. Filtra con | include.","Huawei: display logbuffer")},
+   {c:["show processes cpu"],o:"CPU utilization for five seconds: 9%/1%; one minute: 8%; five minutes: 8%",i:I("Uso de CPU.","Más de 80 % sostenido es motivo para escalar.","Huawei: display cpu-usage")},
+   {c:["show users"],o:"    Line       User       Host(s)              Idle       Location\n*  2 vty 0     usuario09  idle                 00:00:00 10.250.1.30",i:I("Quién está conectado.","El * es tu sesión.","Huawei: display users")}
+  ]},
+ {name:"SW-DIS-02", os:"cisco", role:"Switch · Cisco", vrfs:[], pings:[],
+  cmds:[
+   {c:["show interfaces status"],o:"Port      Name               Status       Vlan       Duplex  Speed Type\nGi1/0/10  CLIENTE-0410       connected    410        a-full a-1000 10/100/1000BaseTX\nGi1/0/11  CLIENTE-0411       connected    411        a-full  a-100 10/100/1000BaseTX\nGi1/0/12  CLIENTE-0412       connected    412        a-full a-1000 10/100/1000BaseTX\nGi1/0/13  CLIENTE-0413       notconnect   413          auto   auto 10/100/1000BaseTX\nTe1/1/1   UPLINK-P-CEN-01    connected    trunk        full    10G SFP-10GBase-LR",i:I("Estado, VLAN, dúplex y velocidad de cada puerto.","a- = autonegociado; sin a- = forzado. notconnect = sin enlace. Un puerto contratado a 1G que dice a-100 puede tener un par del cable dañado.","Huawei: display interface brief")},
+   {c:["show vlan brief"],o:"VLAN Name                             Status    Ports\n---- -------------------------------- --------- -------------------------------\n1    default                          active\n410  CLIENTE-0410                     active    Gi1/0/10\n411  CLIENTE-0411                     active    Gi1/0/11\n412  CLIENTE-0412                     active    Gi1/0/12\n413  CLIENTE-0413                     active    Gi1/0/13",i:I("VLAN creadas y sus puertos de acceso.","Los troncales no aparecen aquí: se ven con show interfaces trunk.","Huawei: display vlan")},
+   {c:["show interfaces trunk"],o:"Port        Mode             Encapsulation  Status        Native vlan\nTe1/1/1     on               802.1q         trunking      999\n\nPort        Vlans allowed on trunk\nTe1/1/1     410-413\n\nPort        Vlans allowed and active in management domain\nTe1/1/1     410-413\n\nPort        Vlans in spanning tree forwarding state and not pruned\nTe1/1/1     410-413",i:I("Troncales: VLAN permitidas y VLAN nativa.","Que la VLAN del cliente esté permitida y que la nativa sea igual en los dos extremos.","Huawei: display port vlan")},
+   {c:["show mac address-table"],o:"          Mac Address Table\n-------------------------------------------\nVlan    Mac Address       Type        Ports\n----    -----------       --------    -----\n 410    5c1a.0b33.0410    DYNAMIC     Gi1/0/10\n 410    00e0.fc12.0005    DYNAMIC     Te1/1/1\n 411    5c1a.0b33.0411    DYNAMIC     Gi1/0/11\n 412    5c1a.0b33.0412    DYNAMIC     Gi1/0/12\nTotal Mac Addresses for this criterion: 4",i:I("Tabla MAC.","La MAC del cliente en su puerto. Filtra por VLAN o por MAC.","Huawei: display mac-address")},
+   {c:["show interfaces GigabitEthernet1/0/10"],o:"GigabitEthernet1/0/10 is up, line protocol is up (connected)\n  Description: CLIENTE-0410\n  MTU 1500 bytes, BW 1000000 Kbit/sec, DLY 10 usec,\n  Full-duplex, 1000Mb/s, media type is 10/100/1000BaseTX\n  5 minute input rate 8210000 bits/sec, 1102 packets/sec\n  5 minute output rate 21330000 bits/sec, 2210 packets/sec\n     0 runts, 0 giants, 0 throttles\n     0 input errors, 0 CRC, 0 frame, 0 overrun, 0 ignored\n     0 output errors, 0 collisions, 0 interface resets\n     0 babbles, 0 late collision, 0 deferred",i:I("Detalle y contadores de un puerto.","CRC y runts (lado full de un mismatch o cable), late collisions (lado half). Mira si suben.","Huawei: display interface <id>")},
+   {c:["show interfaces counters errors"],o:"Port        Align-Err     FCS-Err    Xmit-Err     Rcv-Err  UnderSize  OutDiscards\nGi1/0/10            0           0           0           0          0            0\nGi1/0/11            0           0           0           0          0            0\nGi1/0/12            0           0           0           0          0            0\nTe1/1/1             0           0           0           0          0            0",i:I("Errores de todos los puertos en una sola tabla.","FCS-Err (CRC) y UnderSize (runts) distintos de 0.","Huawei: display interface brief (inErrors)")},
+   {c:["show interfaces GigabitEthernet1/0/10 switchport"],o:"Name: Gi1/0/10\nSwitchport: Enabled\nAdministrative Mode: static access\nOperational Mode: static access\nAccess Mode VLAN: 410 (CLIENTE-0410)\nTrunking Native Mode VLAN: 1 (default)",i:I("Modo del puerto (access o trunk) y su VLAN.","Access Mode VLAN = la VLAN del cliente.","Huawei: display port vlan")},
+   {c:["show spanning-tree"],o:"VLAN0410\n  Spanning tree enabled protocol rstp\n  Root ID    Priority    4506\n             Address     00e0.fc12.0005\n\nInterface           Role Sts Cost      Prio.Nbr Type\n------------------- ---- --- --------- -------- ------------------------\nGi1/0/10            Desg FWD 4         128.10   P2p Edge\nTe1/1/1             Root FWD 2         128.53   P2p",i:I("Estado de Spanning Tree.","FWD = pasa tráfico; BLK = bloqueado. Root = hacia el switch raíz.","Huawei: display stp brief")},
+   {c:["show running-config interface GigabitEthernet1/0/10"],o:"Building configuration...\n\nCurrent configuration : 120 bytes\n!\ninterface GigabitEthernet1/0/10\n description CLIENTE-0410\n switchport access vlan 410\n switchport mode access\nend",i:I("Configuración del puerto.","Sin speed/duplex = automático (lo correcto). Si dice speed 100 duplex full, está forzado.","Huawei: display current-configuration interface <id>")}
+  ]},
+ {name:"FW-CEN-01", os:"forti", role:"Firewall · FortiOS", vrfs:[],
+  pings:[{ip:"10.0.0.6",mtu:1500},{ip:"10.255.0.1",mtu:1500},{ip:"8.8.8.8",mtu:1500}],
+  cmds:[
+   {c:["get system status"],o:"Version: FortiGate-200F v7.2.8,build1639 (GA.M)\nSerial-Number: FG200FXXXXXXXXXX\nHostname: FW-CEN-01\nOperation Mode: NAT\nCurrent virtual domain: root\nSystem time: Fri Oct 30 14:10:27 2026\nUptime: 41 days, 2 hours, 10 minutes",i:I("Modelo, versión, nombre y uptime.","Uptime y versión.","Huawei: display version · Cisco: show version")},
+   {c:["get system interface physical"],o:"== [onboard]\n        ==[x1]\n                mode: static\n                ip: 10.0.0.7 255.255.255.254\n                status: up\n                speed: 10000Mbps (Duplex: full)\n        ==[port1]\n                mode: static\n                ip: 192.168.1.99 255.255.255.0\n                status: down\n                speed: n/a",i:I("Estado físico de los puertos.","status up/down, velocidad y dúplex.","Huawei: display interface brief")},
+   {c:["get router info routing-table all"],o:"Codes: K - kernel, C - connected, S - static, R - RIP, B - BGP\n       O - OSPF, IA - OSPF inter area\n\nRouting table for VRF=0\nS*      0.0.0.0/0 [10/0] via 200.1.1.1, wan1\nC       10.0.0.6/31 is directly connected, x1\nO       10.0.0.0/31 [110/20] via 10.0.0.6, x1, 03:12:45\nO       10.255.0.1/32 [110/11] via 10.0.0.6, x1, 03:12:45\nO       10.255.0.11/32 [110/20] via 10.0.0.6, x1, 03:12:45\nC       10.255.0.31/32 is directly connected, loopback",i:I("Tabla de rutas.","Igual que en Cisco: letra, [distancia/costo] y via. La estática por defecto tiene distancia 10.","Cisco: show ip route · Huawei: display ip routing-table")},
+   {c:["get router info ospf neighbor"],o:"OSPF process 0, VRF 0:\nNeighbor ID     Pri   State           Dead Time   Address         Interface\n10.255.0.1        1   Full/ -         00:00:35    10.0.0.6        x1",i:I("Vecinos OSPF.","State Full.","Cisco: show ip ospf neighbor")},
+   {c:["get router info ospf interface x1"],o:"x1 is up, line protocol is up\n  Internet Address 10.0.0.7/31, Area 0.0.0.0, MTU 1500\n  Process ID 0, VRF 0, Router ID 10.255.0.31, Network Type POINTOPOINT, Cost: 10\n  Timer intervals configured, Hello 10.000, Dead 40, Wait 40, Retransmit 5\n  Neighbor Count is 1, Adjacent neighbor count is 1\n  Hello received 2814 sent 2816, DD received 4 sent 3",i:I("OSPF en una interfaz.","MTU, costo, Hello/Dead y que Hello received y sent suban parejos.","Cisco: show ip ospf interface <id>")},
+   {c:["show router ospf"],o:"config router ospf\n    set router-id 10.255.0.31\n    set auto-cost-ref-bandwidth 100000\n    config area\n        edit 0.0.0.0\n        next\n    end\nend",i:I("Configuración de OSPF (en FortiGate, show = ver config).","router-id y la referencia de ancho de banda.","Cisco: show run | section ospf")},
+   {c:["get system performance status"],o:"CPU states: 4% user 2% system 0% nice 94% idle\nMemory: 8090140k total, 3209100k used (39.7%)\nAverage network usage: 412330 / 398120 kbps in 1 minute",i:I("CPU, memoria y uso de red.","CPU idle bajo o memoria alta sostenida son motivo para escalar.","Huawei: display cpu-usage")},
+   {c:["get system arp"],o:"Address           Age(min)   Hardware Addr      Interface\n10.0.0.6          0          00:aa:bb:01:00:03  x1\n200.1.1.1         1          00:11:22:33:44:55  wan1",i:I("Tabla ARP.","Qué MAC tiene cada IP vecina.","Cisco: show ip arp")}
+  ]}
+],hints:[]};
+
+const FILTER_INFO={include:"ⓘ Filtro | include: muestra solo las líneas que contienen el texto.",exclude:"ⓘ Filtro | exclude: oculta las líneas que contienen el texto.",begin:"ⓘ Filtro | begin: muestra desde la primera línea que contiene el texto.",section:"ⓘ Filtro | section (Cisco): muestra el bloque completo de configuración que contiene el texto."};
+const PING_INFO={
+ huawei:"ⓘ Para qué sirve: prueba si una IP responde.\n  Opciones Huawei: -c cantidad · -s tamaño del dato (paquete = dato + 28) · -f no fragmentar (prueba de MTU) · -m intervalo en ms · -a IP de origen · -vpn-instance NOMBRE (ping dentro de una VRF).\n  Qué mirar: % de pérdida y tiempos. Para MTU 1500: ping -s 1472 -f <ip>.\n  Equivalente: Cisco ping <ip> size 1500 df-bit · Windows ping -f -l 1472 <ip>",
+ cisco:"ⓘ Para qué sirve: prueba si una IP responde.\n  Opciones Cisco: vrf NOMBRE · size (paquete completo) · df-bit (no fragmentar) · repeat (cantidad) · source (origen).\n  Qué mirar: ! = respuesta, . = sin respuesta, M = no se pudo fragmentar. Success rate.\n  Equivalente: Huawei ping -s 1472 -f <ip>",
+ forti:"ⓘ Para qué sirve: prueba si una IP responde desde el firewall.\n  Qué mirar: packets received y % de pérdida.\n  Equivalente: Cisco/Huawei ping <ip>"
+};
+function infoText(i){return "ⓘ Para qué sirve: "+i.what+"\n  Qué mirar: "+i.look+"\n  Equivalente: "+i.eq}
+
+/* =================== Comandos genéricos =================== */
+const GEN = {
+ huawei:[{c:["display clock"], o:"2026-10-30 14:10:27-06:00\nFriday\nTime Zone(GT) : UTC-06:00", i:{what:"Fecha y hora del equipo.",look:"Compárala con la hora de los logs y del reporte; si está mal, los eventos no cuadran.",eq:"Cisco: show clock"}},{c:["display history-command"], o:"__HIST", i:{what:"Los últimos comandos que escribiste en esta sesión.",look:"Útil para copiar lo que revisaste al ticket.",eq:"Cisco: show history"}}],
+ cisco:[{c:["show clock"], o:"*14:10:27.112 GT Fri Oct 30 2026", i:{what:"Fecha y hora del equipo.",look:"El * indica que la hora no está sincronizada por NTP.",eq:"Huawei: display clock"}},{c:["show history"], o:"__HIST", i:{what:"Los últimos comandos de esta sesión.",look:"Útil para el ticket.",eq:"Huawei: display history-command"}}],
+ forti:[{c:["get system status"], o:"Version: FortiGate (laboratorio)\nHostname: __NAME\nOperation Mode: NAT\nCurrent virtual domain: root\nSystem time: Fri Oct 30 14:10:27 2026"}]
+};
+
+/* =================== Estado =================== */
+const KEY="lab-cli-cnoc-v1";
+let mem=null;
+function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return mem}
+function save(){mem=JSON.parse(JSON.stringify(P));try{localStorage.setItem(KEY,JSON.stringify(P))}catch(e){}}
+let P=load()||{}; P.done=P.done||{};
+const S={view:"list", sc:null, dev:0, log:[], hist:[], hpos:-1, used:{}, count:{}, hint:0, answered:null, order:null};
+
+/* =================== Parser =================== */
+const isIf=t=>/^(XGigabitEthernet|GigabitEthernet|TenGigabitEthernet|Eth-Trunk|LoopBack|Vlanif)\d/.test(t)||/^x\d+$/.test(t);
+function normIf(s){
+  s=s.toLowerCase(); const m=s.match(/^([a-z-]+)(\d[\d\/.:]*)$/); if(!m) return null;
+  const p=m[1], n=m[2]; let k=null;
+  if(p==="xge"||(p.length>=2&&p[0]==="x"&&"xgigabitethernet".startsWith(p))) k="xge";
+  else if(p==="te"||(p.length>=2&&"tengigabitethernet".startsWith(p))) k="te";
+  else if(p==="ge"||"gigabitethernet".startsWith(p)) k="ge";
+  else if(p.length>=3&&"eth-trunk".startsWith(p)) k="eth-trunk";
+  else if(p.length>=2&&"loopback".startsWith(p)) k="lo";
+  else if(p.length>=5&&"vlanif".startsWith(p)) k="vlanif";
+  else if(p==="x") k="x";
+  else return null;
+  return k+n;
+}
+function tokMatch(u,c){
+  if(isIf(c)){const a=normIf(u),b=normIf(c);return !!a&&a===b}
+  if(/[A-Z0-9]/.test(c)) return u===c;
+  return u.length>0&&c.startsWith(u.toLowerCase());
+}
+const devObj=()=>S.sc.devices[S.dev];
+const allCmds=d=>d.cmds.concat(GEN[d.os]);
+function find(d,toks){
+  let best=0, incomplete=false;
+  for(const e of allCmds(d)) for(const c of e.c){
+    const ct=c.split(" "); let k=0;
+    while(k<toks.length&&k<ct.length&&tokMatch(toks[k],ct[k])) k++;
+    if(k===toks.length&&k===ct.length) return {e,canon:e.c[0]};
+    if(k===toks.length&&k<ct.length) incomplete=true;
+    best=Math.max(best,k);
+  }
+  return {incomplete,best};
+}
+function nextTokens(d,typed,partial){
+  const set=new Set();
+  for(const e of allCmds(d)) for(const c of e.c){
+    const ct=c.split(" "); if(ct.length<=typed.length) continue;
+    let ok=true; for(let i=0;i<typed.length;i++){if(!tokMatch(typed[i],ct[i])){ok=false;break}}
+    if(!ok) continue;
+    const nx=ct[typed.length];
+    if(!partial||nx.toLowerCase().startsWith(partial.toLowerCase())||(isIf(nx)&&normIf(partial+"0")&&normIf(nx).startsWith(normIf(partial+"0").replace(/0$/,"")))) set.add(nx);
+  }
+  return [...set];
+}
+const promptOf=d=>d.os==="huawei"?"<"+d.name+">":d.os==="cisco"?d.name+"#":d.name+" #";
+
+/* =================== Consola =================== */
+function out(text,cls){S.log.push({t:text,c:cls||""}); const o=document.getElementById("out"); if(o){const div=document.createElement("div"); if(cls) div.className=cls; div.textContent=text; o.appendChild(div); o.scrollTop=o.scrollHeight;}}
+function caretErr(d,raw,pos){
+  const pad=promptOf(d).length+pos;
+  if(d.os==="huawei") return " ".repeat(pad)+"^\nError: Unrecognized command found at '^' position.";
+  if(d.os==="cisco") return " ".repeat(pad)+"^\n% Invalid input detected at '^' marker.";
+  return "command parse error before '"+raw.trim().split(/\s+/)[0]+"'\nCommand fail. Return code -61";
+}
+function applyFilter(text,f){
+  const lines=text.split("\n"); let re;
+  try{re=new RegExp(f.pat)}catch(e){re={test:s=>s.includes(f.pat)}}
+  if(f.type==="include") return lines.filter(l=>re.test(l)).join("\n");
+  if(f.type==="exclude") return lines.filter(l=>!re.test(l)).join("\n");
+  if(f.type==="begin"){const i=lines.findIndex(l=>re.test(l));return i<0?"":lines.slice(i).join("\n")}
+  if(f.type==="section"){const r=[];let on=false;for(const l of lines){if(!/^\s/.test(l)){on=re.test(l);if(on)r.push(l)}else if(on)r.push(l)}return r.join("\n")}
+  return text;
+}
+function parseFilter(s,os){
+  const m=s.trim().match(/^(\S+)\s+(.+)$/); if(!m) return null;
+  const k=m[1].toLowerCase(), pat=m[2].trim();
+  const types=os==="forti"?[["grep","include"]]:[["include","include"],["exclude","exclude"],["begin","begin"]].concat(os==="cisco"?[["section","section"]]:[]);
+  for(const [w,t] of types) if(w.startsWith(k)) return {type:t,pat};
+  return null;
+}
+const BLOCK=/^(sys|system-view|conf|configure|config|undo|shutdown|no|reset|reboot|reload|save|write|wr|copy|delete|format|interface|int|ip|router|ospf|set|edit|end|commit|execute\s+(reboot|factoryreset|shutdown))\b/i;
+
+function record(canon){S.used[devObj().name+"|"+canon]=true}
+function run(raw){
+  const d=devObj(); out(promptOf(d)+raw,"cmd");
+  let line=raw.replace(/\s+$/,""); if(!line.trim()) return;
+  S.hist.push(raw); S.hpos=S.hist.length;
+  if(line.endsWith("?")) return help(line.slice(0,-1));
+  const low=line.trim().toLowerCase();
+  if(low==="help") return help("");
+  if(low==="clear"||low==="cls"){S.log=[];const o=document.getElementById("out");if(o)o.innerHTML="";return}
+  if(["quit","exit","return","logout"].includes(low)) return out("[Laboratorio] Usa las pestañas de arriba para cambiar de equipo.","lab");
+  let cmd=line, filt=null; const pi=line.indexOf("|");
+  if(pi>=0){cmd=line.slice(0,pi); filt=parseFilter(line.slice(pi+1),d.os); if(!filt) return out(caretErr(d,line,pi+2),"err");}
+  const toks=cmd.trim().split(/\s+/);
+  if(d.os!=="forti"&&tokMatch(toks[0],"ping")&&toks[0].length>=2) { d.os==="huawei"?pingHw(d,toks.slice(1)):pingCi(d,toks.slice(1)); if(S.free) out(PING_INFO[d.os],"info"); return; }
+  if(d.os==="forti"&&toks.length>=2&&tokMatch(toks[0],"execute")&&tokMatch(toks[1],"ping")) { pingFg(d,toks.slice(2)); if(S.free) out(PING_INFO.forti,"info"); return; }
+  if(BLOCK.test(cmd.trim())&&!/^(display|show|get|dis|sh)\b/i.test(cmd.trim())) { out("[Laboratorio] Comando de configuración bloqueado: el N1 trabaja en solo lectura.","lab"); if(S.free){const ci=confInfo(cmd.trim()); if(ci) out(ci,"info");} return; }
+  const r=find(d,toks);
+  if(r.e){
+    const id=d.name+"|"+r.canon; S.count[id]=(S.count[id]||0)+1; record(r.canon);
+    let o=typeof r.e.o==="function"?r.e.o(S.count[id]):r.e.o;
+    if(o==="__HIST") o=S.hist.slice(-20).join("\n");
+    o=o.replace(/__NAME/g,d.name);
+    if(filt) o=applyFilter(o,filt);
+    out(o||" ");
+    if(S.free){ if(r.e.i) out(infoText(r.e.i),"info"); if(filt) out(FILTER_INFO[filt.type],"info"); }
+    return;
+  }
+  if(r.incomplete) return out(d.os==="huawei"?"Error: Incomplete command found at '^' position.":d.os==="cisco"?"% Incomplete command.":"command parse error: incomplete","err");
+  let pos=0; const parts=cmd.split(/(\s+)/); let k=0; for(const p of parts){if(/^\s+$/.test(p)||p===""){pos+=p.length;continue} if(k===r.best)break; pos+=p.length;k++}
+  out(caretErr(d,cmd,pos),"err");
+  out(S.free?"[Práctica] Ese comando no está en el laboratorio o no es de este equipo. Escribe ? para ver la lista, o prueba en otra pestaña (Huawei, Cisco o FortiGate).":"[Laboratorio] Escribe ? para ver los comandos disponibles en este equipo.","dim");
+}
+function confInfo(c){
+  const l=c.toLowerCase();
+  const M=[[/^(sys|system-view)/,"system-view (Huawei): entra al modo de configuración. Cisco: configure terminal (conf t)."],[/^conf/,"configure terminal (Cisco): entra al modo de configuración. Huawei: system-view."],[/^save/,"save (Huawei): guarda la configuración para que no se pierda al reiniciar. Cisco: write memory."],[/^(wr|write)/,"write memory (Cisco): guarda la configuración. Huawei: save."],[/^undo/,"undo (Huawei): quita una línea de configuración. En Cisco se antepone no."],[/^no\b/,"no (Cisco): quita una línea de configuración. En Huawei se usa undo."],[/^shut/,"shutdown: apaga una interfaz. Corta el servicio."],[/^reset counters/,"reset counters interface <id> (Huawei): pone en cero los contadores de la interfaz. Cisco: clear counters <id>."],[/^clear counters/,"clear counters <id> (Cisco): pone en cero los contadores. Huawei: reset counters interface <id>."],[/^(reboot|reload)/,"reboot (Huawei) / reload (Cisco): reinicia el equipo. Corta todo el servicio."]];
+  for(const [re,t] of M) if(re.test(l)) return "ⓘ "+t+"\n  El N1 no lo ejecuta en producción sin autorización.";
+  return null;
+}
+function help(base){
+  const d=devObj();
+  if(!base.trim()){
+    const list=allCmds(d).map(e=>"  "+e.c[0]);
+    if(d.os==="huawei") list.push("  ping [-c n] [-s n] [-f] [-vpn-instance NOMBRE] <ip>");
+    if(d.os==="cisco") list.push("  ping [vrf NOMBRE] <ip> [size n] [df-bit] [repeat n]");
+    if(d.os==="forti") list.push("  execute ping <ip>");
+    out("[Laboratorio] Comandos disponibles en "+d.name+" (se pueden abreviar):\n"+list.join("\n")+"\n  Filtros: "+(d.os==="forti"?"| grep <texto>":"| include / exclude / begin"+(d.os==="cisco"?" / section":"")+" <texto>"),"dim");
+    return;
+  }
+  const endsSpace=/\s$/.test(base); const toks=base.trim().split(/\s+/);
+  const typed=endsSpace?toks:toks.slice(0,-1); const partial=endsSpace?"":toks[toks.length-1];
+  const nx=nextTokens(d,typed,partial);
+  out(nx.length?nx.map(x=>"  "+x).join("\n")+(find(d,toks).e&&endsSpace?"\n  <cr>":""):(find(d,toks).e?"  <cr>":"  (sin opciones)"),"dim");
+  const inp=document.getElementById("in"); if(inp){inp.value=base;inp.focus()}
+}
+function tab(){
+  const inp=document.getElementById("in"); const v=inp.value; const d=devObj();
+  const endsSpace=/\s$/.test(v); const toks=v.trim()?v.trim().split(/\s+/):[];
+  const typed=endsSpace?toks:toks.slice(0,-1); const partial=endsSpace?"":(toks[toks.length-1]||"");
+  const nx=nextTokens(d,typed,partial);
+  if(nx.length===1){inp.value=typed.concat(nx[0]).join(" ")+" "}
+  else if(nx.length>1){
+    let cp=nx[0]; for(const x of nx){while(!x.toLowerCase().startsWith(cp.toLowerCase()))cp=cp.slice(0,-1)}
+    out(promptOf(d)+v,"cmd"); out(nx.map(x=>"  "+x).join("\n"),"dim");
+    if(cp.length>partial.length) inp.value=typed.concat(cp).join(" ");
+  }
+  inp.focus();
+}
+
+/* =================== Ping simulado =================== */
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const isIp=s=>/^\d{1,3}(\.\d{1,3}){3}$/.test(s);
+function target(d,ip,vrf){return (d.pings||[]).find(p=>p.ip===ip&&(p.vrf||null)===(vrf||null))}
+function pingHw(d,a){
+  let c=5,s=56,df=false,vrf=null,ip=null;
+  for(let i=0;i<a.length;i++){const t=a[i];
+    if(t==="-c") c=parseInt(a[++i]); else if(t==="-s") s=parseInt(a[++i]); else if(t==="-f") df=true;
+    else if(t==="-m"||t==="-t"||t==="-a"||t==="-i") i++;
+    else if(t==="-vpn-instance") vrf=a[++i];
+    else if(isIp(t)) ip=t; else return out("Error: Wrong parameter found at '^' position.","err");}
+  if(!ip||isNaN(c)||isNaN(s)) return out("Error: Incomplete command found at '^' position.","err");
+  if(vrf&&!(d.vrfs||[]).includes(vrf)) return out("Error: The VPN instance does not exist.","err");
+  c=Math.max(1,Math.min(c,10000));
+  const tg=target(d,ip,vrf), pkt=s+28, ok=!!tg&&(!df||pkt<=tg.mtu);
+  markPing(df,ok,vrf);
+  const L=["  PING "+ip+": "+s+"  data bytes, press CTRL_C to break"]; const show=Math.min(c,5); let mn=99,mx=0,sum=0;
+  for(let i=1;i<=show;i++){ if(ok){const r=rnd(1,3);mn=Math.min(mn,r);mx=Math.max(mx,r);sum+=r;L.push("    Reply from "+ip+": bytes="+s+" Sequence="+i+" ttl=254 time="+r+" ms")} else L.push("    Request time out")}
+  if(c>show) L.push("    ... [Laboratorio] se omiten "+(c-show)+" líneas iguales");
+  L.push("","  --- "+ip+" ping statistics ---","    "+c+" packet(s) transmitted","    "+(ok?c:0)+" packet(s) received","    "+(ok?"0.00":"100.00")+"% packet loss");
+  if(ok) L.push("    round-trip min/avg/max = "+mn+"/"+Math.round(sum/show)+"/"+mx+" ms");
+  out(L.join("\n"));
+}
+function pingCi(d,a){
+  let i=0,vrf=null; if(a[0]&&tokMatch(a[0],"vrf")){vrf=a[1];i=2}
+  const ip=a[i++]; if(!ip||!isIp(ip)) return out("% Unrecognized host or address, or protocol not running.","err");
+  let size=100,rep=5,df=false;
+  for(;i<a.length;i++){const t=a[i];
+    if(tokMatch(t,"size")) size=parseInt(a[++i]); else if(tokMatch(t,"repeat")) rep=parseInt(a[++i]);
+    else if(tokMatch(t,"df-bit")) df=true; else if(tokMatch(t,"source")||tokMatch(t,"timeout")) i++;
+    else return out("% Invalid input detected at '^' marker.","err");}
+  if(vrf&&!(d.vrfs||[]).includes(vrf)) return out("% VRF "+vrf+" is not configured","err");
+  const tg=target(d,ip,vrf), ok=!!tg&&(!df||size<=tg.mtu); markPing(df,ok,vrf);
+  const n=Math.min(rep,100); const r1=rnd(1,2),r2=r1+rnd(0,2);
+  out("Type escape sequence to abort.\nSending "+rep+", "+size+"-byte ICMP Echos to "+ip+", timeout is 2 seconds:"+(df?"\nPacket sent with the DF bit set":"")+"\n"+(ok?"!":".").repeat(n)+(rep>100?"...":"")+"\nSuccess rate is "+(ok?100:0)+" percent ("+(ok?rep:0)+"/"+rep+")"+(ok?", round-trip min/avg/max = "+r1+"/"+r1+"/"+r2+" ms":""));
+}
+function pingFg(d,a){
+  const ip=a.find(isIp); if(!ip) return out("command parse error before 'ping'","err");
+  const ok=!!target(d,ip,null); const L=["PING "+ip+" ("+ip+"): 56 data bytes"];
+  for(let i=0;i<5;i++) if(ok) L.push("64 bytes from "+ip+": icmp_seq="+i+" ttl=255 time=0."+rnd(3,9)+" ms");
+  L.push("","--- "+ip+" ping statistics ---","5 packets transmitted, "+(ok?5:0)+" packets received, "+(ok?0:100)+"% packet loss"); if(ok) L.push("round-trip min/avg/max = 0.3/0.5/0.9 ms");
+  out(L.join("\n"));
+}
+function markPing(df,ok,vrf){ if(vrf&&ok) record("__ping_vrf"); if(df&&!ok) record("__ping_df_fail"); if(df&&ok) record("__ping_df_ok"); }
+
+/* =================== Vistas =================== */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const OSN={huawei:"Huawei",cisco:"Cisco",forti:"FortiGate"};
+function listView(){
+  const solved=SC.filter(s=>P.done[s.id]&&P.done[s.id].ok).length;
+  return `<header class="brand"><div class="leds" aria-hidden="true"><i></i><i></i><i></i></div><h1>Laboratorio CLI CNOC</h1></header>
+  <p class="sub">Consola simulada para practicar el diagnóstico del N1. ${SC.length} casos, ${solved} resueltos. Todos los equipos, IP y clientes son ficticios.</p>
+  <section class="panel"><span class="label">Cómo se usa</span><ul>
+   <li>Lee el ticket, entra a cada equipo con las pestañas y escribe comandos como en el equipo real.</li>
+   <li>Puedes abreviar: <code>dis ospf peer br</code>, <code>sh ip ospf nei</code>, <code>dis int g0/0/3</code>.</li>
+   <li><code>?</code> muestra los comandos; <b>Tab</b> completa; ↑ repite el anterior. Filtros: <code>| include</code>, <code>| begin</code>.</li>
+   <li>Cuando tengas la causa, toca <b>Diagnosticar</b>. Al final ves qué comandos clave usaste.</li>
+   <li>Los comandos de configuración están bloqueados: el N1 trabaja en solo lectura.</li></ul></section>
+  <button class="sc free" data-act="free"><span class="n">PRÁCTICA LIBRE · 5 EQUIPOS</span><strong>Escribe un comando y te digo qué muestra y para qué sirve</strong><span class="n">Huawei, Cisco y FortiGate con una red sana</span></button>
+  <span class="label">Casos de diagnóstico</span>
+  <div class="cards">${SC.map((s,i)=>{const d=P.done[s.id];return `<button class="sc" data-act="open" data-i="${i}"><span class="n">CASO ${String(i+1).padStart(2,"0")} · ${esc(s.level)}</span><strong>${esc(s.title)}</strong><span class="meta">${[...new Set(s.devices.map(x=>OSN[x.os]))].map(o=>`<span class="pill">${o}</span>`).join("")}${d?`<span class="pill ${d.ok?"ok":"bad"}">${d.ok?"Resuelto":"Repasar"}</span>`:""}</span></button>`}).join("")}</div>
+  <p class="foot">El progreso se guarda solo en este navegador.</p>`;
+}
+function labView(){
+  const s=S.sc, d=devObj();
+  return `<div class="top"><button class="link" data-act="back">← Inicio</button><span class="label">${S.free?"Práctica libre":esc(s.level)}</span></div>
+  ${S.free?`<section class="panel"><h2>Práctica libre</h2><p class="sub">Escribe cualquier comando de lectura (puedes abreviarlo). Te devuelvo la salida y, en azul, para qué sirve, qué mirar y su equivalente en la otra marca. Toca <b>Ideas</b> si no sabes qué probar.</p></section>`:`<section class="panel"><h2>${esc(s.title)}</h2><div class="ticket"><span class="label">Ticket</span><p>${esc(s.ticket)}</p><p><b>Objetivo:</b> ${esc(s.goal)}</p></div></section>`}
+  <div class="tabs" role="group" aria-label="Equipos">${s.devices.map((x,i)=>`<button class="tab" data-act="dev" data-i="${i}" aria-pressed="${i===S.dev}">${esc(x.name)}<small>${esc(x.role)}</small></button>`).join("")}</div>
+  <div class="term">
+    <div class="out" id="out" aria-live="polite"></div>
+    <form class="inrow" id="form" autocomplete="off"><span class="prompt" id="prompt">${esc(promptOf(d))}</span>
+      <input id="in" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="Comando">
+      <button class="send" type="submit">Enter</button></form>
+    <div class="keys">
+      <button class="key" data-act="k-up" aria-label="Comando anterior">↑</button>
+      <button class="key" data-act="k-tab">Tab</button>
+      <button class="key" data-act="k-ins" data-v="?">?</button>
+      <button class="key" data-act="k-ins" data-v=" | ">|</button>
+      <button class="key" data-act="k-hint">${S.free?"Ideas":"Pista"}</button>
+      <button class="key" data-act="k-clear">Limpiar</button>
+    </div>
+  </div>
+  ${S.free?"":`<section class="panel" id="diag">${diagView()}</section>`}`;
+}
+function diagView(){
+  const s=S.sc;
+  if(S.answered===null && !S.showQ) return `<div class="row"><button class="btn primary" data-act="ask">Diagnosticar</button></div><span class="foot">Investiga primero en los equipos. Puedes pedir pistas en la consola.</span>`;
+  const ord=S.order; const ans=S.answered!==null;
+  const okA=ans&&S.answered===s.q.correct;
+  let h=`<p class="q">${esc(s.q.text)}</p><div class="opts">${ord.map(i=>{let cls="opt"; if(ans){if(i===s.q.correct)cls+=" ok";else if(i===S.answered)cls+=" bad";else cls+=" dim"} return `<button class="${cls}" data-act="pick" data-i="${i}" ${ans?'aria-disabled="true"':""}><span class="port"></span><span>${esc(s.q.options[i])}</span></button>`}).join("")}</div>`;
+  if(ans){
+    h+=`<div class="fb ${okA?"ok":"bad"}"><b class="t">${okA?"Diagnóstico correcto":"No es esa"}</b><p>${esc(s.q.explain)}</p>
+    <span class="label">Comandos clave</span><ul class="checks">${s.keys.map(k=>{const u=k.any.some(c=>S.used[k.dev+"|"+c]);return `<li><span class="mk ${u?"y":"n2"}">${u?"✓":"✗"}</span><span>${esc(k.label)} <span class="foot">(${esc(k.dev)})</span></span></li>`}).join("")}</ul></div>
+    <div class="row"><button class="btn primary" data-act="next">Siguiente caso</button><button class="btn" data-act="retry">Repetir este</button></div>`;
+  }
+  return h;
+}
+function render(){
+  const app=document.getElementById("app");
+  app.innerHTML=S.view==="list"?listView():labView();
+  if(S.view==="lab"){
+    const o=document.getElementById("out"); for(const l of S.log){const div=document.createElement("div");if(l.c)div.className=l.c;div.textContent=l.t;o.appendChild(div)} o.scrollTop=o.scrollHeight;
+    document.getElementById("form").addEventListener("submit",e=>{e.preventDefault();const i=document.getElementById("in");const v=i.value;i.value="";run(v);i.focus()});
+    document.getElementById("in").addEventListener("keydown",keys);
+  }
+}
+function keys(e){
+  const i=e.target;
+  if(e.key==="Tab"){e.preventDefault();tab()}
+  else if(e.key==="ArrowUp"){e.preventDefault();if(S.hpos>0){S.hpos--;i.value=S.hist[S.hpos]}}
+  else if(e.key==="ArrowDown"){e.preventDefault();if(S.hpos<S.hist.length-1){S.hpos++;i.value=S.hist[S.hpos]}else{S.hpos=S.hist.length;i.value=""}}
+  else if(e.key==="?"){e.preventDefault();const v=i.value;i.value="";out(promptOf(devObj())+v+"?","cmd");help(v)}
+}
+function banner(){const d=devObj();out("--- Conectado a "+d.name+" ("+d.role+") ---","ban");out("[Laboratorio] Escribe ? para ver los comandos. Todo es ficticio.","dim")}
+function openFree(){
+  S.free=true; S.sc=FREE; S.dev=0; S.log=[]; S.hist=[]; S.hpos=0; S.used={}; S.count={}; S.answered=null;
+  S.view="lab"; banner(); render(); window.scrollTo(0,0);
+}
+function openSc(i){
+  S.free=false; S.sc=SC[i]; S.dev=0; S.log=[]; S.hist=[]; S.hpos=0; S.used={}; S.count={}; S.hint=0; S.answered=null; S.showQ=false;
+  S.order=[...S.sc.q.options.keys()].sort(()=>Math.random()-.5);
+  S.view="lab"; banner(); render(); window.scrollTo(0,0);
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b) return; const a=b.dataset.act, i=b.dataset.i!==undefined?+b.dataset.i:null;
+  if(a==="open") openSc(i);
+  else if(a==="free") openFree();
+  else if(a==="back"){S.view="list";render();window.scrollTo(0,0)}
+  else if(a==="dev"){if(i===S.dev)return;S.dev=i;banner();document.querySelectorAll(".tab").forEach((t,k)=>t.setAttribute("aria-pressed",k===i));document.getElementById("prompt").textContent=promptOf(devObj());document.getElementById("in").focus()}
+  else if(a==="k-up"){const inp=document.getElementById("in");if(S.hpos>0){S.hpos--;inp.value=S.hist[S.hpos]}inp.focus()}
+  else if(a==="k-tab") tab();
+  else if(a==="k-ins"){const inp=document.getElementById("in"); if(b.dataset.v==="?"){const v=inp.value;inp.value="";out(promptOf(devObj())+v+"?","cmd");help(v)} else {inp.value+=b.dataset.v;inp.focus()}}
+  else if(a==="k-hint"&&S.free){const d=devObj();const pool=allCmds(d).map(e=>e.c[0]).sort(()=>Math.random()-.5).slice(0,4);out("[Ideas para "+d.name+"] Prueba:\n"+pool.map(x=>"  "+x).join("\n")+"\n  ping <ip>  ·  agrega | include <texto> a cualquier comando","hint")}
+  else if(a==="k-hint"){const h=S.sc.hints; out(S.hint<h.length?"[Pista "+(S.hint+1)+"/"+h.length+"] "+h[S.hint++]:"[Pista] Ya viste todas. Toca Diagnosticar cuando tengas la causa.","hint")}
+  else if(a==="k-clear"){S.log=[];document.getElementById("out").innerHTML=""}
+  else if(a==="ask"){S.showQ=true;document.getElementById("diag").innerHTML=diagView();document.getElementById("diag").scrollIntoView({block:"start",behavior:"smooth"})}
+  else if(a==="pick"){if(S.answered!==null)return;S.answered=i;const ok=i===S.sc.q.correct;P.done[S.sc.id]={ok};save();document.getElementById("diag").innerHTML=diagView()}
+  else if(a==="next"){const k=SC.indexOf(S.sc);openSc((k+1)%SC.length)}
+  else if(a==="retry") openSc(SC.indexOf(S.sc));
+});
+render();
+</script>
+</body>
+</html>
