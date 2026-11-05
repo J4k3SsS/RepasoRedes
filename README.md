@@ -28,16 +28,6 @@ Cinco equipos con una red sana (2 Huawei, 2 Cisco y 1 FortiGate). Escribes un co
 | 11 | El hotel no navega tras cambiar su router | BGP (Bad peer AS) |
 | 12 | Desde Internet no llegan al hotel | Filtros de rutas (prefix-list) |
 
-## Cómo publicarlo en GitHub Pages
-
-1. Entra a github.com y crea un repositorio nuevo (por ejemplo `lab-cli-cnoc`), público.
-2. Toca **Add file → Upload files** y sube `index.html`, `repaso.html` y este `README.md`.
-3. Ve a **Settings → Pages**.
-4. En **Source** elige **Deploy from a branch**, rama `main`, carpeta `/ (root)`, y guarda.
-5. En 1 o 2 minutos queda en: `https://TU-USUARIO.github.io/lab-cli-cnoc/`
-
-Para actualizarlo, sube de nuevo `index.html` (reemplaza el anterior).
-
 ## Uso
 
 - Abreviaturas: `dis ospf peer br`, `sh ip ospf nei`, `dis int g0/0/3`.
